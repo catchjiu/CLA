@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, Users, Calendar, Clock, BookOpen, Layers, CheckCircle2, Loader2, Edit3, Video } from 'lucide-react';
 
 const getYoutubeId = (url: string) => {
@@ -14,6 +15,7 @@ const getYoutubeId = (url: string) => {
 export default function ClassDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { role } = useAuth();
   const [cls, setCls] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -63,12 +65,14 @@ export default function ClassDetails() {
           Back to Dashboard
         </button>
         
-        <Link 
-          to={`/edit-class/${id}`}
-          className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-lg shadow-sm"
-        >
-          <Edit3 className="w-4 h-4" /> Edit Class Details
-        </Link>
+        {role === 'coach' && (
+          <Link 
+            to={`/edit-class/${id}`}
+            className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-lg shadow-sm"
+          >
+            <Edit3 className="w-4 h-4" /> Edit Class Details
+          </Link>
+        )}
       </div>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">

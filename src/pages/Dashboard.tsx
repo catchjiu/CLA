@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { Users, TrendingUp, PlusCircle, Calendar as CalendarIcon, BookOpen, Loader2, ChevronRight } from 'lucide-react';
 
 interface ClassLog {
@@ -23,6 +24,7 @@ const CURRICULUM_OPTIONS = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { role } = useAuth();
   const [recentClasses, setRecentClasses] = useState<ClassLog[]>([]);
   const [stats, setStats] = useState({ classesRun: 0, totalAttendance: 0, avgAttendance: 0 });
   const [curriculumStats, setCurriculumStats] = useState<{subject: string, coverage: number}[]>([]);
@@ -87,18 +89,24 @@ export default function Dashboard() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Coach Dashboard</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Manage curriculum coverage and log training sessions.</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+            {role === 'coach' ? 'Coach Dashboard' : 'Member Dashboard'}
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">
+            {role === 'coach' ? 'Manage curriculum coverage and log training sessions.' : 'View recent training sessions and curriculum progress.'}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <select className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-medium rounded-lg px-4 py-2 text-slate-700 dark:text-slate-200 shadow-sm outline-none">
             <option>Recent Classes</option>
             <option>This Month</option>
           </select>
-          <Link to="/log-class" className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-amber-700 text-white text-sm font-semibold rounded-lg shadow-sm shadow-primary/20 transition-all active:scale-95">
-            <PlusCircle className="w-4 h-4" />
-            Log Session
-          </Link>
+          {role === 'coach' && (
+            <Link to="/log-class" className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-amber-700 text-white text-sm font-semibold rounded-lg shadow-sm shadow-primary/20 transition-all active:scale-95">
+              <PlusCircle className="w-4 h-4" />
+              Log Session
+            </Link>
+          )}
         </div>
       </div>
 
