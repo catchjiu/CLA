@@ -68,7 +68,7 @@ export function Header() {
   return (
     <header className="h-[72px] sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6">
       <div className="flex items-center gap-6">
-        <Link to="/">
+        <Link to="/dashboard">
           <h1 className="text-xl font-black tracking-tighter text-slate-900 dark:text-white uppercase flex items-center gap-2 hover:opacity-80 transition-opacity">
             <span className="text-primary tracking-normal">ECO</span> CLA
           </h1>
