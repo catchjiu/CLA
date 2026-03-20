@@ -28,7 +28,7 @@ export function AIGameGenerator({ topic, constraint1, constraint2, constraint3, 
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
       const prompt = `You are an expert Jiu-Jitsu head coach specializing in the Constraints-Led Approach (CLA) and Ecological Dynamics.
 Based on the following class session:
