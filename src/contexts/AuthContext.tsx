@@ -26,6 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const roleFetchGeneration = useRef(0);
   const lastFetchedUserIdRef = useRef<string | null>(null);
+  /** Supabase may emit SIGNED_IN again for an existing session; avoid re-blocking the whole app. */
+  const committedSessionUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const sessionTimeout = setTimeout(() => setLoading(false), 8000);
@@ -72,7 +74,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .getSession()
       .then(({ data: { session }, error }) => {
         if (error) console.error(error);
-        setUser(session?.user ?? null);
+        const u = session?.user ?? null;
+        setUser(u);
+        committedSessionUserIdRef.current = u?.id ?? null;
         if (session?.user) {
           fetchRole(session.user.id);
         } else {
@@ -90,18 +94,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         const nextUser = session?.user ?? null;
+        const nextId = nextUser?.id ?? null;
 
-        if (event === 'SIGNED_IN') {
-          setLoading(true);
+        if (event === 'SIGNED_IN' && nextId) {
+          const isNewSession =
+            committedSessionUserIdRef.current === null ||
+            committedSessionUserIdRef.current !== nextId;
+          if (isNewSession) {
+            setLoading(true);
+          }
         }
 
         setUser(nextUser);
+        committedSessionUserIdRef.current = nextId;
 
         if (nextUser) {
           await fetchRole(nextUser.id);
         } else {
           roleFetchGeneration.current += 1;
           lastFetchedUserIdRef.current = null;
+          committedSessionUserIdRef.current = null;
           setRole(null);
           setLoading(false);
         }
@@ -116,6 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     roleFetchGeneration.current += 1;
     lastFetchedUserIdRef.current = null;
+    committedSessionUserIdRef.current = null;
     await supabase.auth.signOut();
   };
 
