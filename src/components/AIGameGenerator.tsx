@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Card } from './ui/Card';
 import { supabase } from '../lib/supabase';
+import { SUPABASE_REQUEST_TIMEOUT_MS, withTimeout } from '../lib/withTimeout';
 import { Sparkles, Loader2, RefreshCw, Save, Edit2, Globe, Lock } from 'lucide-react';
 
 interface Props {
@@ -131,14 +132,24 @@ Be practical, straight to the point, and highly applicable to a real BJJ class s
     if (selectedConstraint === '3') columnToUpdate = 'constraint_3_ai';
 
     try {
-      const { error: saveError } = await supabase
-        .from('classes')
-        .update({ [columnToUpdate]: suggestion })
-        .eq('id', classId);
+      const { data, error: saveError } = await withTimeout(
+        supabase
+          .from('classes')
+          .update({ [columnToUpdate]: suggestion })
+          .eq('id', classId)
+          .select('id'),
+        SUPABASE_REQUEST_TIMEOUT_MS,
+        'Save'
+      );
       if (saveError) throw saveError;
+      if (!data?.length) {
+        throw new Error(
+          'Save did not update any rows. The class may be missing or your account may not have permission to edit it.'
+        );
+      }
       setIsEditing(false);
     } catch (err: any) {
-      setError('Failed to save suggestion.');
+      setError(err?.message || 'Failed to save suggestion.');
       console.error(err);
     } finally {
       setIsSaving(false);
@@ -156,14 +167,22 @@ Be practical, straight to the point, and highly applicable to a real BJJ class s
 
     try {
       const newStatus = !isPublished;
-      const { error: pubError } = await supabase
-        .from('classes')
-        .update({ [pubColumn]: newStatus })
-        .eq('id', classId);
+      const { data, error: pubError } = await withTimeout(
+        supabase
+          .from('classes')
+          .update({ [pubColumn]: newStatus })
+          .eq('id', classId)
+          .select('id'),
+        SUPABASE_REQUEST_TIMEOUT_MS,
+        'Publish update'
+      );
       if (pubError) throw pubError;
+      if (!data?.length) {
+        throw new Error('Could not update publish status (no row updated).');
+      }
       setIsPublished(newStatus);
     } catch (err: any) {
-      setError('Failed to update publish status.');
+      setError(err?.message || 'Failed to update publish status.');
       console.error(err);
     } finally {
       setIsTogglingPublish(false);

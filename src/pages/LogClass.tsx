@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
+import { SUPABASE_REQUEST_TIMEOUT_MS, withTimeout } from '../lib/withTimeout';
 import { ArrowLeft, CheckSquare, Square, Shield, Loader2, Trash2 } from 'lucide-react';
 
 const getYoutubeId = (url: string) => {
@@ -119,17 +120,35 @@ export default function LogClass() {
 
     try {
       if (isEditMode) {
-        const { error } = await supabase.from('classes').update(payload).eq('id', id);
+        const { data, error } = await withTimeout(
+          supabase.from('classes').update(payload).eq('id', id).select('id'),
+          SUPABASE_REQUEST_TIMEOUT_MS,
+          'Save session'
+        );
         if (error) throw error;
+        if (!data?.length) {
+          throw new Error(
+            'Update did not save any rows. You may lack permission or this session no longer exists.'
+          );
+        }
         navigate(`/class/${id}`);
       } else {
-        const { error } = await supabase.from('classes').insert([payload]);
+        const { data, error } = await withTimeout(
+          supabase.from('classes').insert([payload]).select('id').maybeSingle(),
+          SUPABASE_REQUEST_TIMEOUT_MS,
+          'Save session'
+        );
         if (error) throw error;
+        if (!data?.id) {
+          throw new Error('Insert did not create a row. Check your connection and database setup.');
+        }
         navigate('/dashboard');
       }
-    } catch (err) {
-      console.error("Failed to log class:", err);
-      alert('Error updating database. Please ensure you ran the latest SQL script.');
+    } catch (err: unknown) {
+      console.error('Failed to log class:', err);
+      const message =
+        err instanceof Error ? err.message : 'Error updating database. Please try again.';
+      alert(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -140,12 +159,20 @@ export default function LogClass() {
     
     setIsDeleting(true);
     try {
-      const { error } = await supabase.from('classes').delete().eq('id', id);
+      const { data, error } = await withTimeout(
+        supabase.from('classes').delete().eq('id', id).select('id'),
+        SUPABASE_REQUEST_TIMEOUT_MS,
+        'Delete session'
+      );
       if (error) throw error;
+      if (!data?.length) {
+        throw new Error('Nothing was deleted. You may lack permission or this session no longer exists.');
+      }
       navigate('/dashboard');
-    } catch (err) {
-      console.error("Failed to delete class:", err);
-      alert('Error deleting session. Please try again.');
+    } catch (err: unknown) {
+      console.error('Failed to delete class:', err);
+      const message = err instanceof Error ? err.message : 'Error deleting session. Please try again.';
+      alert(message);
     } finally {
       setIsDeleting(false);
     }
