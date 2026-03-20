@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { AIGameGenerator } from '../components/AIGameGenerator';
 import { ArrowLeft, Users, Calendar, Clock, BookOpen, Layers, CheckCircle2, Loader2, Edit3, Video } from 'lucide-react';
 
 const getYoutubeId = (url: string) => {
@@ -146,6 +147,16 @@ export default function ClassDetails() {
            </div>
         </Card>
       </div>
+
+      {role === 'coach' && (
+        <AIGameGenerator 
+          topic={cls.topic}
+          constraint1={cls.constraint_1}
+          constraint2={cls.constraint_2}
+          constraint3={cls.constraint_3}
+          classType={cls.class_type}
+        />
+      )}
 
       {cls.youtube_url && getYoutubeId(cls.youtube_url) && (
         <div className="mt-6">
