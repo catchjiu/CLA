@@ -4,6 +4,13 @@ import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
 import { ArrowLeft, CheckSquare, Square, Shield, Loader2, Trash2 } from 'lucide-react';
 
+const getYoutubeId = (url: string) => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
+
 const CURRICULUM_OPTIONS = [
   'Guard',
   'Dominate positions',
@@ -27,6 +34,7 @@ export default function LogClass() {
   const [time, setTime] = useState("18:00");
   const [classType, setClassType] = useState(CLASS_TYPES[0]);
   const [topic, setTopic] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
   const [constraint1, setConstraint1] = useState("");
   const [constraint2, setConstraint2] = useState("");
   const [constraint3, setConstraint3] = useState("");
@@ -46,6 +54,7 @@ export default function LogClass() {
           setTime(data.time);
           setClassType(data.class_type);
           setTopic(data.topic || "");
+          setYoutubeUrl(data.youtube_url || "");
           setAttendeesCount(data.attendees_count || 0);
           setSelectedCurriculum(data.curriculum || []);
           setConstraint1(data.constraint_1 || "");
@@ -73,6 +82,7 @@ export default function LogClass() {
       time,
       class_type: classType,
       topic,
+      youtube_url: youtubeUrl,
       constraint_1: constraint1,
       constraint_2: constraint2,
       constraint_3: constraint3,
@@ -224,6 +234,30 @@ export default function LogClass() {
                   placeholder="e.g., The Back Take Problem..." 
                   className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-slate-100 placeholder-slate-400" 
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">YouTube URL (Reference Video)</label>
+                <input 
+                  type="url" 
+                  value={youtubeUrl}
+                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  placeholder="https://youtube.com/watch?v=..." 
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-slate-100 placeholder-slate-400" 
+                />
+                {isEditMode && youtubeUrl && getYoutubeId(youtubeUrl) && (
+                  <div className="mt-4 aspect-video rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      src={`https://www.youtube.com/embed/${getYoutubeId(youtubeUrl)}`}
+                      title="YouTube video player"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    ></iframe>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4">

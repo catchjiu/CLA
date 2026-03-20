@@ -2,7 +2,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Users, Calendar, Clock, BookOpen, Layers, CheckCircle2, Loader2, Edit3 } from 'lucide-react';
+import { ArrowLeft, Users, Calendar, Clock, BookOpen, Layers, CheckCircle2, Loader2, Edit3, Video } from 'lucide-react';
+
+const getYoutubeId = (url: string) => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
 
 export default function ClassDetails() {
   const { id } = useParams();
@@ -135,6 +142,27 @@ export default function ClassDetails() {
            </div>
         </Card>
       </div>
+
+      {cls.youtube_url && getYoutubeId(cls.youtube_url) && (
+        <div className="mt-6">
+          <Card>
+            <h2 className="text-lg font-bold mb-4 text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
+               <Video className="w-5 h-5 text-slate-400" /> Class Video
+            </h2>
+            <div className="aspect-video rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm bg-slate-900">
+              <iframe
+                width="100%"
+                height="100%"
+                src={`https://www.youtube.com/embed/${getYoutubeId(cls.youtube_url)}`}
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
