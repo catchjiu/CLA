@@ -40,7 +40,7 @@ export default function LogClass() {
   useEffect(() => {
     if (isEditMode) {
       async function fetchClass() {
-        const { data, error } = await supabase.from('classes').select('*').eq('id', id).single();
+        const { data } = await supabase.from('classes').select('*').eq('id', id).single();
         if (data) {
           setDate(data.date);
           setTime(data.time);

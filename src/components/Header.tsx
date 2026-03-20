@@ -1,4 +1,4 @@
-import { Search, Timer, Bell, Shield } from 'lucide-react';
+import { Search, Bell, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { bjjData } from '../data/bjj-library';
 
