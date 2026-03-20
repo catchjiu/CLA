@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { Card } from '../components/ui/Card';
 import { Shield, Loader2, AlertCircle } from 'lucide-react';
 
@@ -10,6 +11,12 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (!user || loading) return;
+    navigate('/dashboard', { replace: true });
+  }, [user, loading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,10 +30,6 @@ export default function Login() {
       });
 
       if (error) throw error;
-      
-      // onAuthStateChange in AuthContext will handle the redirect indirectly 
-      // but we can actively navigate to dashboard
-      navigate('/dashboard');
     } catch (err: any) {
       console.error('Login error:', err);
       setErrorMsg(err.message || 'Failed to login');

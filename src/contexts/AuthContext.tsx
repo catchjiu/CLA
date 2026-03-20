@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
@@ -24,36 +24,84 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<Role>(null);
   const [loading, setLoading] = useState(true);
+  const roleFetchGeneration = useRef(0);
+  const lastFetchedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const sessionTimeout = setTimeout(() => setLoading(false), 8000);
 
-    // Check active sessions and sets the user
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) console.error(error);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchRole(session.user.id);
-      } else {
-        setLoading(false);
+    const fetchRole = async (userId: string) => {
+      const generation = ++roleFetchGeneration.current;
+      if (lastFetchedUserIdRef.current !== userId) {
+        setRole(null);
+        lastFetchedUserIdRef.current = userId;
       }
-    }).catch(() => {
-      setLoading(false);
-    }).finally(() => {
-      clearTimeout(sessionTimeout);
-    });
+
+      const roleTimeout = setTimeout(() => {
+        if (generation === roleFetchGeneration.current) {
+          setLoading(false);
+        }
+      }, 8000);
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+
+        if (generation !== roleFetchGeneration.current) return;
+
+        if (error) {
+          console.error('Error fetching role:', error);
+        } else if (data) {
+          setRole(data.role as Role);
+        }
+      } catch (err) {
+        console.error('Error in fetchRole:', err);
+      } finally {
+        clearTimeout(roleTimeout);
+        if (generation === roleFetchGeneration.current) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Check active sessions and sets the user
+    supabase.auth
+      .getSession()
+      .then(({ data: { session }, error }) => {
+        if (error) console.error(error);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          fetchRole(session.user.id);
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        setLoading(false);
+      })
+      .finally(() => {
+        clearTimeout(sessionTimeout);
+      });
 
     // Listen for changes on auth state (logged in, signed out, etc.)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Only force loading UI on fresh sign-in to avoid blocking UI during background refreshes
+        const nextUser = session?.user ?? null;
+
         if (event === 'SIGNED_IN') {
           setLoading(true);
         }
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchRole(session.user.id);
+
+        setUser(nextUser);
+
+        if (nextUser) {
+          await fetchRole(nextUser.id);
         } else {
+          roleFetchGeneration.current += 1;
+          lastFetchedUserIdRef.current = null;
           setRole(null);
           setLoading(false);
         }
@@ -65,30 +113,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const fetchRole = async (userId: string) => {
-    const roleTimeout = setTimeout(() => setLoading(false), 8000);
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-        
-      if (error) {
-        console.error('Error fetching role:', error);
-      } else if (data) {
-        setRole(data.role as Role);
-      }
-    } catch (err) {
-      console.error('Error in fetchRole:', err);
-    } finally {
-      clearTimeout(roleTimeout);
-      setLoading(false);
-    }
-  };
-
   const signOut = async () => {
+    roleFetchGeneration.current += 1;
+    lastFetchedUserIdRef.current = null;
     await supabase.auth.signOut();
   };
 

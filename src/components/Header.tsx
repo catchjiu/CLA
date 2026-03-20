@@ -32,26 +32,33 @@ export function Header() {
       return;
     }
 
-    const timer = setTimeout(async () => {
-      setIsSearching(true);
-      setShowDropdown(true);
-      
-      const safeTerm = searchTerm.replace(/"/g, '');
-      const term = `%${safeTerm}%`;
-      const { data, error } = await supabase
-        .from('classes')
-        .select('id, class_type, topic, date')
-        .or(`topic.ilike."${term}",constraint_1.ilike."${term}",constraint_2.ilike."${term}",constraint_3.ilike."${term}",class_type.ilike."${term}"`)
-        .order('date', { ascending: false })
-        .limit(6);
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        setIsSearching(true);
+        setShowDropdown(true);
 
-      if (!error && data) {
-        setResults(data);
-      }
-      setIsSearching(false);
+        const safeTerm = searchTerm.replace(/"/g, '');
+        const term = `%${safeTerm}%`;
+        const { data, error } = await supabase
+          .from('classes')
+          .select('id, class_type, topic, date')
+          .or(`topic.ilike."${term}",constraint_1.ilike."${term}",constraint_2.ilike."${term}",constraint_3.ilike."${term}",class_type.ilike."${term}"`)
+          .order('date', { ascending: false })
+          .limit(6);
+
+        if (cancelled) return;
+        if (!error && data) {
+          setResults(data);
+        }
+        setIsSearching(false);
+      })();
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [searchTerm]);
 
   const handleSelectResult = (id: string) => {
