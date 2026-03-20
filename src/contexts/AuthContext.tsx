@@ -38,7 +38,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for changes on auth state (logged in, signed out, etc.)
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        if (event === 'SIGNED_IN') {
+          setLoading(true);
+        }
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchRole(session.user.id);
