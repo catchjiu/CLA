@@ -1,21 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Card } from './ui/Card';
-import { Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { Sparkles, Loader2, RefreshCw, Save, Edit2, Globe, Lock } from 'lucide-react';
 
 interface Props {
+  classId: string;
   topic?: string;
+  constraint1Title?: string;
   constraint1?: string;
+  constraint2Title?: string;
   constraint2?: string;
+  constraint3Title?: string;
   constraint3?: string;
   classType?: string;
+  initialSuggestion?: string;
+  initialPublished?: boolean;
 }
 
-export function AIGameGenerator({ topic, constraint1, constraint2, constraint3, classType }: Props) {
-  const [suggestion, setSuggestion] = useState('');
+export function AIGameGenerator({ classId, topic, constraint1Title, constraint1, constraint2Title, constraint2, constraint3Title, constraint3, classType, initialSuggestion, initialPublished }: Props) {
+  const [suggestion, setSuggestion] = useState(initialSuggestion || '');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
   const [selectedConstraint, setSelectedConstraint] = useState<string>('all');
+  const [isPublished, setIsPublished] = useState(initialPublished || false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isTogglingPublish, setIsTogglingPublish] = useState(false);
+
+  useEffect(() => {
+    if (initialSuggestion) setSuggestion(initialSuggestion);
+    if (initialPublished !== undefined) setIsPublished(initialPublished);
+  }, [initialSuggestion, initialPublished]);
 
   const generateGame = async () => {
     setIsGenerating(true);
@@ -32,14 +48,18 @@ export function AIGameGenerator({ topic, constraint1, constraint2, constraint3, 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
       let constraintText = '';
+      const name1 = constraint1Title || 'Constraint 1';
+      const name2 = constraint2Title || 'Constraint 2';
+      const name3 = constraint3Title || 'Constraint 3';
+
       if (selectedConstraint === 'all') {
-        constraintText = `Existing Constraints/Mini-Games:\n1: ${constraint1 || 'None'}\n2: ${constraint2 || 'None'}\n3: ${constraint3 || 'None'}`;
+        constraintText = `Existing Constraints/Mini-Games:\n${name1}: ${constraint1 || 'None'}\n${name2}: ${constraint2 || 'None'}\n${name3}: ${constraint3 || 'None'}`;
       } else if (selectedConstraint === '1') {
-        constraintText = `Target Constraint to build upon: ${constraint1}`;
+        constraintText = `Target Constraint to build upon (${name1}): ${constraint1}`;
       } else if (selectedConstraint === '2') {
-        constraintText = `Target Constraint to build upon: ${constraint2}`;
+        constraintText = `Target Constraint to build upon (${name2}): ${constraint2}`;
       } else if (selectedConstraint === '3') {
-        constraintText = `Target Constraint to build upon: ${constraint3}`;
+        constraintText = `Target Constraint to build upon (${name3}): ${constraint3}`;
       }
 
       const prompt = `You are an expert Jiu-Jitsu head coach specializing in the Constraints-Led Approach (CLA) and Ecological Dynamics.
@@ -62,11 +82,49 @@ Be practical, straight to the point, and highly applicable to a real BJJ class s
       const result = await model.generateContent(prompt);
       const text = result.response.text();
       setSuggestion(text);
+      setIsEditing(true);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to generate suggestion. Please try again.');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setError('');
+    try {
+      const { error: saveError } = await supabase
+        .from('classes')
+        .update({ ai_suggestion: suggestion })
+        .eq('id', classId);
+      if (saveError) throw saveError;
+      setIsEditing(false);
+    } catch (err: any) {
+      setError('Failed to save suggestion.');
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleTogglePublish = async () => {
+    setIsTogglingPublish(true);
+    setError('');
+    try {
+      const newStatus = !isPublished;
+      const { error: pubError } = await supabase
+        .from('classes')
+        .update({ ai_suggestion_published: newStatus })
+        .eq('id', classId);
+      if (pubError) throw pubError;
+      setIsPublished(newStatus);
+    } catch (err: any) {
+      setError('Failed to update publish status.');
+      console.error(err);
+    } finally {
+      setIsTogglingPublish(false);
     }
   };
 
@@ -87,18 +145,18 @@ Be practical, straight to the point, and highly applicable to a real BJJ class s
           <select 
             value={selectedConstraint}
             onChange={(e) => setSelectedConstraint(e.target.value)}
-            disabled={isGenerating}
+            disabled={isGenerating || isSaving}
             className="flex-1 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-slate-100 outline-none disabled:opacity-50"
           >
             <option value="all">All Constraints (Entire Session)</option>
-            {constraint1 && <option value="1">Constraint 1: {constraint1}</option>}
-            {constraint2 && <option value="2">Constraint 2: {constraint2}</option>}
-            {constraint3 && <option value="3">Constraint 3: {constraint3}</option>}
+            {constraint1 && <option value="1">{constraint1Title || 'Constraint 1'}</option>}
+            {constraint2 && <option value="2">{constraint2Title || 'Constraint 2'}</option>}
+            {constraint3 && <option value="3">{constraint3Title || 'Constraint 3'}</option>}
           </select>
           
           <button 
             onClick={generateGame}
-            disabled={isGenerating}
+            disabled={isGenerating || isSaving}
             className="bg-indigo-600 hover:bg-indigo-700 text-white border-none rounded-lg px-4 py-2 flex items-center justify-center gap-2 text-sm font-semibold transition-all shadow-sm disabled:opacity-50 whitespace-nowrap"
           >
             {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : (suggestion ? <RefreshCw className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />)}
@@ -107,22 +165,72 @@ Be practical, straight to the point, and highly applicable to a real BJJ class s
         </div>
       </div>
 
-      {isGenerating && !suggestion && (
-        <div className="py-8 flex flex-col items-center justify-center text-indigo-600/60 dark:text-indigo-500/60 space-y-4">
+      {isGenerating && (!suggestion || isEditing) && (
+        <div className="py-6 flex flex-col items-center justify-center text-indigo-600/60 dark:text-indigo-500/60 space-y-4">
           <Loader2 className="w-8 h-8 animate-spin" />
           <p className="text-sm font-medium animate-pulse">Designing constraint landscape based on session...</p>
         </div>
       )}
 
       {error && (
-        <div className="p-3 bg-danger/10 text-danger text-sm rounded-lg border border-danger/20">
+        <div className="p-3 mb-4 bg-danger/10 text-danger text-sm rounded-lg border border-danger/20">
           {error}
         </div>
       )}
 
-      {suggestion && (
-        <div className="text-slate-700 dark:text-slate-300">
-           <div className="whitespace-pre-wrap text-sm leading-relaxed">{suggestion.replace(/\*\*/g, '')}</div>
+      {suggestion && !isGenerating && (
+        <div className="animate-in fade-in duration-500">
+          {isEditing ? (
+            <textarea
+              value={suggestion}
+              onChange={(e) => setSuggestion(e.target.value)}
+              className="w-full min-h-[250px] text-sm leading-relaxed p-4 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 focus:ring-2 focus:ring-indigo-500/50 outline-none text-slate-800 dark:text-slate-200 shadow-inner resize-y"
+            />
+          ) : (
+            <div className="text-slate-700 dark:text-slate-300 bg-white/50 dark:bg-slate-900/50 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/50 overflow-hidden">
+               <div className="whitespace-pre-wrap text-sm leading-relaxed">{suggestion.replace(/\*\*/g, '')}</div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-indigo-100 dark:border-indigo-900/30">
+            <div className="flex items-center gap-3">
+              {isEditing ? (
+                <button 
+                  onClick={handleSave} 
+                  disabled={isSaving}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save Suggestion
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setIsEditing(true)} 
+                  className="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Edit
+                </button>
+              )}
+            </div>
+
+            {/* Publish Toggle Button only available when NOT editing, guaranteeing they save first */}
+            {!isEditing && (
+              <button 
+                onClick={handleTogglePublish}
+                disabled={isTogglingPublish}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors border ${isPublished ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800/50' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700'} disabled:opacity-50`}
+              >
+                {isTogglingPublish ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : isPublished ? (
+                  <><Globe className="w-4 h-4" /> Published</>
+                ) : (
+                  <><Lock className="w-4 h-4" /> Private (Draft)</>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </Card>

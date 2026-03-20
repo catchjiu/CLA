@@ -35,8 +35,11 @@ export default function LogClass() {
   const [classType, setClassType] = useState(CLASS_TYPES[0]);
   const [topic, setTopic] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [constraint1Title, setConstraint1Title] = useState("");
   const [constraint1, setConstraint1] = useState("");
+  const [constraint2Title, setConstraint2Title] = useState("");
   const [constraint2, setConstraint2] = useState("");
+  const [constraint3Title, setConstraint3Title] = useState("");
   const [constraint3, setConstraint3] = useState("");
   const [attendeesCount, setAttendeesCount] = useState<number>(0);
   const [selectedCurriculum, setSelectedCurriculum] = useState<string[]>([]);
@@ -57,8 +60,11 @@ export default function LogClass() {
           setYoutubeUrl(data.youtube_url || "");
           setAttendeesCount(data.attendees_count || 0);
           setSelectedCurriculum(data.curriculum || []);
+          setConstraint1Title(data.constraint_1_title || "");
           setConstraint1(data.constraint_1 || "");
+          setConstraint2Title(data.constraint_2_title || "");
           setConstraint2(data.constraint_2 || "");
+          setConstraint3Title(data.constraint_3_title || "");
           setConstraint3(data.constraint_3 || "");
         }
         setLoading(false);
@@ -83,8 +89,11 @@ export default function LogClass() {
       class_type: classType,
       topic,
       youtube_url: youtubeUrl,
+      constraint_1_title: constraint1Title,
       constraint_1: constraint1,
+      constraint_2_title: constraint2Title,
       constraint_2: constraint2,
+      constraint_3_title: constraint3Title,
       constraint_3: constraint3,
       curriculum: selectedCurriculum,
       attendees_count: attendeesCount
@@ -260,33 +269,54 @@ export default function LogClass() {
                 )}
               </div>
 
-              <div className="space-y-4">
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Constraints & Mini-Games</p>
-                <div>
+              <div className="space-y-6">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800 pb-2">Constraints & Mini-Games</p>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800 space-y-3">
+                  <input 
+                    type="text"
+                    value={constraint1Title}
+                    onChange={(e) => setConstraint1Title(e.target.value)}
+                    placeholder="Game 1 Title (e.g., Mount Escapes)"
+                    className="w-full font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                  />
                   <textarea 
                     rows={2} 
                     value={constraint1}
                     onChange={(e) => setConstraint1(e.target.value)}
-                    placeholder="Constraint 1 / Mini Game 1" 
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                    placeholder="Constraint 1 Rules / Objective" 
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-slate-100 placeholder-slate-400"
                   ></textarea>
                 </div>
-                <div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800 space-y-3">
+                  <input 
+                    type="text"
+                    value={constraint2Title}
+                    onChange={(e) => setConstraint2Title(e.target.value)}
+                    placeholder="Game 2 Title"
+                    className="w-full font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                  />
                   <textarea 
                     rows={2} 
                     value={constraint2}
                     onChange={(e) => setConstraint2(e.target.value)}
-                    placeholder="Constraint 2 / Mini Game 2" 
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                    placeholder="Constraint 2 Rules / Objective" 
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-slate-100 placeholder-slate-400"
                   ></textarea>
                 </div>
-                <div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800 space-y-3">
+                  <input 
+                    type="text"
+                    value={constraint3Title}
+                    onChange={(e) => setConstraint3Title(e.target.value)}
+                    placeholder="Game 3 Title"
+                    className="w-full font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                  />
                   <textarea 
                     rows={2} 
                     value={constraint3}
                     onChange={(e) => setConstraint3(e.target.value)}
-                    placeholder="Constraint 3 / Mini Game 3" 
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                    placeholder="Constraint 3 Rules / Objective" 
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-slate-100 placeholder-slate-400"
                   ></textarea>
                 </div>
               </div>

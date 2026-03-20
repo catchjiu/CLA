@@ -4,7 +4,7 @@ import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { AIGameGenerator } from '../components/AIGameGenerator';
-import { ArrowLeft, Users, Calendar, Clock, BookOpen, Layers, CheckCircle2, Loader2, Edit3, Video } from 'lucide-react';
+import { ArrowLeft, Users, Calendar, Clock, BookOpen, Layers, CheckCircle2, Loader2, Edit3, Video, Sparkles } from 'lucide-react';
 
 const getYoutubeId = (url: string) => {
   if (!url) return null;
@@ -23,18 +23,20 @@ export default function ClassDetails() {
   useEffect(() => {
     async function fetchClass() {
       if (!id) return;
-      const { data, error } = await supabase
-        .from('classes')
-        .select('*')
-        .eq('id', id)
-        .single();
-        
-      if (error) {
-        console.error("Error fetching class details:", error);
-      } else {
+      try {
+        const { data, error } = await supabase
+          .from('classes')
+          .select('*')
+          .eq('id', id)
+          .single();
+          
+        if (error) throw error;
         setCls(data);
+      } catch (err: any) {
+        console.error("Error fetching class details:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     fetchClass();
   }, [id]);
@@ -107,21 +109,27 @@ export default function ClassDetails() {
              </h2>
              <div className="space-y-4">
                {cls.constraint_1 && (
-                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-slate-700 dark:text-slate-200 border border-slate-100 dark:border-slate-800 relative">
-                    <span className="absolute -top-3 left-4 bg-white dark:bg-slate-900 text-xs font-bold text-slate-500 border border-slate-200 dark:border-slate-700 px-2 rounded-full">Constraint 1</span>
-                    <span className="mt-2 block whitespace-pre-wrap">{cls.constraint_1}</span>
+                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-slate-700 dark:text-slate-200 border border-slate-100 dark:border-slate-800 relative mt-2">
+                    <span className="absolute -top-3 left-4 bg-white dark:bg-slate-900 text-xs font-bold text-slate-500 border border-slate-200 dark:border-slate-700 px-2 rounded-full">
+                      {cls.constraint_1_title || 'Constraint 1'}
+                    </span>
+                    <span className="mt-1 block whitespace-pre-wrap">{cls.constraint_1}</span>
                  </div>
                )}
                {cls.constraint_2 && (
-                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-slate-700 dark:text-slate-200 border border-slate-100 dark:border-slate-800 relative">
-                    <span className="absolute -top-3 left-4 bg-white dark:bg-slate-900 text-xs font-bold text-slate-500 border border-slate-200 dark:border-slate-700 px-2 rounded-full">Constraint 2</span>
-                    <span className="mt-2 block whitespace-pre-wrap">{cls.constraint_2}</span>
+                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-slate-700 dark:text-slate-200 border border-slate-100 dark:border-slate-800 relative mt-4">
+                    <span className="absolute -top-3 left-4 bg-white dark:bg-slate-900 text-xs font-bold text-slate-500 border border-slate-200 dark:border-slate-700 px-2 rounded-full">
+                      {cls.constraint_2_title || 'Constraint 2'}
+                    </span>
+                    <span className="mt-1 block whitespace-pre-wrap">{cls.constraint_2}</span>
                  </div>
                )}
                {cls.constraint_3 && (
-                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-slate-700 dark:text-slate-200 border border-slate-100 dark:border-slate-800 relative">
-                    <span className="absolute -top-3 left-4 bg-white dark:bg-slate-900 text-xs font-bold text-slate-500 border border-slate-200 dark:border-slate-700 px-2 rounded-full">Constraint 3</span>
-                    <span className="mt-2 block whitespace-pre-wrap">{cls.constraint_3}</span>
+                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-slate-700 dark:text-slate-200 border border-slate-100 dark:border-slate-800 relative mt-4">
+                    <span className="absolute -top-3 left-4 bg-white dark:bg-slate-900 text-xs font-bold text-slate-500 border border-slate-200 dark:border-slate-700 px-2 rounded-full">
+                      {cls.constraint_3_title || 'Constraint 3'}
+                    </span>
+                    <span className="mt-1 block whitespace-pre-wrap">{cls.constraint_3}</span>
                  </div>
                )}
                {!cls.constraint_1 && !cls.constraint_2 && !cls.constraint_3 && (
@@ -150,12 +158,33 @@ export default function ClassDetails() {
 
       {role === 'coach' && (
         <AIGameGenerator 
+          classId={cls.id}
           topic={cls.topic}
+          constraint1Title={cls.constraint_1_title}
           constraint1={cls.constraint_1}
+          constraint2Title={cls.constraint_2_title}
           constraint2={cls.constraint_2}
+          constraint3Title={cls.constraint_3_title}
           constraint3={cls.constraint_3}
           classType={cls.class_type}
+          initialSuggestion={cls.ai_suggestion}
+          initialPublished={cls.ai_suggestion_published}
         />
+      )}
+
+      {role === 'member' && cls.ai_suggestion_published && cls.ai_suggestion && (
+        <div className="mt-8 animate-in slide-in-from-bottom-4 duration-500">
+          <Card className="border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-950/40 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+            <h2 className="text-lg font-bold mb-4 text-indigo-900 dark:text-indigo-300 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-indigo-500" />
+              Follow-up Game (Coach Suggestion)
+            </h2>
+            <div className="text-slate-700 dark:text-slate-300">
+               <div className="whitespace-pre-wrap text-sm leading-relaxed">{cls.ai_suggestion.replace(/\*\*/g, '')}</div>
+            </div>
+          </Card>
+        </div>
       )}
 
       {cls.youtube_url && getYoutubeId(cls.youtube_url) && (
