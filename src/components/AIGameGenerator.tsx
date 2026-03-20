@@ -7,31 +7,61 @@ import { Sparkles, Loader2, RefreshCw, Save, Edit2, Globe, Lock } from 'lucide-r
 interface Props {
   classId: string;
   topic?: string;
+  classType?: string;
   constraint1Title?: string;
   constraint1?: string;
+  constraint1AI?: string;
+  constraint1AIPub?: boolean;
   constraint2Title?: string;
   constraint2?: string;
+  constraint2AI?: string;
+  constraint2AIPub?: boolean;
   constraint3Title?: string;
   constraint3?: string;
-  classType?: string;
-  initialSuggestion?: string;
-  initialPublished?: boolean;
+  constraint3AI?: string;
+  constraint3AIPub?: boolean;
+  generalAI?: string;
+  generalAIPub?: boolean;
 }
 
-export function AIGameGenerator({ classId, topic, constraint1Title, constraint1, constraint2Title, constraint2, constraint3Title, constraint3, classType, initialSuggestion, initialPublished }: Props) {
-  const [suggestion, setSuggestion] = useState(initialSuggestion || '');
+export function AIGameGenerator({ 
+  classId, topic, classType,
+  constraint1Title, constraint1, constraint1AI, constraint1AIPub,
+  constraint2Title, constraint2, constraint2AI, constraint2AIPub,
+  constraint3Title, constraint3, constraint3AI, constraint3AIPub,
+  generalAI, generalAIPub
+}: Props) {
+  const [selectedConstraint, setSelectedConstraint] = useState<string>('all');
+  const [suggestion, setSuggestion] = useState(generalAI || '');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
-  const [selectedConstraint, setSelectedConstraint] = useState<string>('all');
-  const [isPublished, setIsPublished] = useState(initialPublished || false);
+  const [isPublished, setIsPublished] = useState(generalAIPub || false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isTogglingPublish, setIsTogglingPublish] = useState(false);
 
   useEffect(() => {
-    if (initialSuggestion) setSuggestion(initialSuggestion);
-    if (initialPublished !== undefined) setIsPublished(initialPublished);
-  }, [initialSuggestion, initialPublished]);
+    switch (selectedConstraint) {
+      case 'all':
+        setSuggestion(generalAI || '');
+        setIsPublished(generalAIPub || false);
+        break;
+      case '1':
+        setSuggestion(constraint1AI || '');
+        setIsPublished(constraint1AIPub || false);
+        break;
+      case '2':
+        setSuggestion(constraint2AI || '');
+        setIsPublished(constraint2AIPub || false);
+        break;
+      case '3':
+        setSuggestion(constraint3AI || '');
+        setIsPublished(constraint3AIPub || false);
+        break;
+    }
+    setIsEditing(false); // Turn off editing when switching views
+    setError('');
+  }, [selectedConstraint, generalAI, generalAIPub, constraint1AI, constraint1AIPub, constraint2AI, constraint2AIPub, constraint3AI, constraint3AIPub]);
 
   const generateGame = async () => {
     setIsGenerating(true);
@@ -94,10 +124,16 @@ Be practical, straight to the point, and highly applicable to a real BJJ class s
   const handleSave = async () => {
     setIsSaving(true);
     setError('');
+    
+    let columnToUpdate = 'ai_suggestion';
+    if (selectedConstraint === '1') columnToUpdate = 'constraint_1_ai';
+    if (selectedConstraint === '2') columnToUpdate = 'constraint_2_ai';
+    if (selectedConstraint === '3') columnToUpdate = 'constraint_3_ai';
+
     try {
       const { error: saveError } = await supabase
         .from('classes')
-        .update({ ai_suggestion: suggestion })
+        .update({ [columnToUpdate]: suggestion })
         .eq('id', classId);
       if (saveError) throw saveError;
       setIsEditing(false);
@@ -112,11 +148,17 @@ Be practical, straight to the point, and highly applicable to a real BJJ class s
   const handleTogglePublish = async () => {
     setIsTogglingPublish(true);
     setError('');
+    
+    let pubColumn = 'ai_suggestion_published';
+    if (selectedConstraint === '1') pubColumn = 'constraint_1_ai_published';
+    if (selectedConstraint === '2') pubColumn = 'constraint_2_ai_published';
+    if (selectedConstraint === '3') pubColumn = 'constraint_3_ai_published';
+
     try {
       const newStatus = !isPublished;
       const { error: pubError } = await supabase
         .from('classes')
-        .update({ ai_suggestion_published: newStatus })
+        .update({ [pubColumn]: newStatus })
         .eq('id', classId);
       if (pubError) throw pubError;
       setIsPublished(newStatus);
@@ -145,7 +187,7 @@ Be practical, straight to the point, and highly applicable to a real BJJ class s
           <select 
             value={selectedConstraint}
             onChange={(e) => setSelectedConstraint(e.target.value)}
-            disabled={isGenerating || isSaving}
+            disabled={isGenerating || isSaving || isEditing}
             className="flex-1 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-slate-100 outline-none disabled:opacity-50"
           >
             <option value="all">All Constraints (Entire Session)</option>

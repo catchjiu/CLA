@@ -21,6 +21,13 @@ export default function ClassDetails() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    
+    // Safety fallback: Force spinner to stop if network request hangs (e.g., waking from sleep)
+    const timeoutId = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 8000);
+
     async function fetchClass() {
       if (!id) return;
       try {
@@ -31,14 +38,20 @@ export default function ClassDetails() {
           .single();
           
         if (error) throw error;
-        setCls(data);
+        if (isMounted) setCls(data);
       } catch (err: any) {
         console.error("Error fetching class details:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
+        clearTimeout(timeoutId);
       }
     }
     fetchClass();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [id]);
 
   if (loading) {
@@ -47,10 +60,17 @@ export default function ClassDetails() {
 
   if (!cls) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-12 text-center">
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Class Not Found</h2>
-        <p className="text-slate-500 mb-6">This class log may have been deleted or doesn't exist.</p>
-        <button onClick={() => navigate('/dashboard')} className="text-primary hover:underline">Return to Dashboard</button>
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center animate-in fade-in duration-500">
+        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-2">Class Not Found</h2>
+        <p className="text-slate-500 mb-8">This class may have been deleted, or your network connection was interrupted.</p>
+        <div className="flex gap-4 justify-center">
+          <button onClick={() => window.location.reload()} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-semibold transition-colors">
+            Retry Connection
+          </button>
+          <button onClick={() => navigate('/dashboard')} className="px-6 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-amber-700 transition-colors shadow-sm shadow-primary/20">
+            Return to Dashboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -114,6 +134,16 @@ export default function ClassDetails() {
                       {cls.constraint_1_title || 'Constraint 1'}
                     </span>
                     <span className="mt-1 block whitespace-pre-wrap">{cls.constraint_1}</span>
+                    {role === 'member' && cls.constraint_1_ai_published && cls.constraint_1_ai && (
+                      <div className="mt-4 p-4 bg-indigo-50/50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100/50 dark:border-indigo-800/50">
+                        <h4 className="font-bold text-indigo-800 dark:text-indigo-400 text-xs mb-2 flex items-center gap-1.5 uppercase tracking-wider">
+                          <Sparkles className="w-3.5 h-3.5"/> Follow-up AI Game
+                        </h4>
+                        <div className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                          {cls.constraint_1_ai.replace(/\*\*/g, '')}
+                        </div>
+                      </div>
+                    )}
                  </div>
                )}
                {cls.constraint_2 && (
@@ -122,6 +152,16 @@ export default function ClassDetails() {
                       {cls.constraint_2_title || 'Constraint 2'}
                     </span>
                     <span className="mt-1 block whitespace-pre-wrap">{cls.constraint_2}</span>
+                    {role === 'member' && cls.constraint_2_ai_published && cls.constraint_2_ai && (
+                      <div className="mt-4 p-4 bg-indigo-50/50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100/50 dark:border-indigo-800/50">
+                        <h4 className="font-bold text-indigo-800 dark:text-indigo-400 text-xs mb-2 flex items-center gap-1.5 uppercase tracking-wider">
+                          <Sparkles className="w-3.5 h-3.5"/> Follow-up AI Game
+                        </h4>
+                        <div className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                          {cls.constraint_2_ai.replace(/\*\*/g, '')}
+                        </div>
+                      </div>
+                    )}
                  </div>
                )}
                {cls.constraint_3 && (
@@ -130,6 +170,16 @@ export default function ClassDetails() {
                       {cls.constraint_3_title || 'Constraint 3'}
                     </span>
                     <span className="mt-1 block whitespace-pre-wrap">{cls.constraint_3}</span>
+                    {role === 'member' && cls.constraint_3_ai_published && cls.constraint_3_ai && (
+                      <div className="mt-4 p-4 bg-indigo-50/50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100/50 dark:border-indigo-800/50">
+                        <h4 className="font-bold text-indigo-800 dark:text-indigo-400 text-xs mb-2 flex items-center gap-1.5 uppercase tracking-wider">
+                          <Sparkles className="w-3.5 h-3.5"/> Follow-up AI Game
+                        </h4>
+                        <div className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                          {cls.constraint_3_ai.replace(/\*\*/g, '')}
+                        </div>
+                      </div>
+                    )}
                  </div>
                )}
                {!cls.constraint_1 && !cls.constraint_2 && !cls.constraint_3 && (
@@ -162,13 +212,19 @@ export default function ClassDetails() {
           topic={cls.topic}
           constraint1Title={cls.constraint_1_title}
           constraint1={cls.constraint_1}
+          constraint1AI={cls.constraint_1_ai}
+          constraint1AIPub={cls.constraint_1_ai_published}
           constraint2Title={cls.constraint_2_title}
           constraint2={cls.constraint_2}
+          constraint2AI={cls.constraint_2_ai}
+          constraint2AIPub={cls.constraint_2_ai_published}
           constraint3Title={cls.constraint_3_title}
           constraint3={cls.constraint_3}
+          constraint3AI={cls.constraint_3_ai}
+          constraint3AIPub={cls.constraint_3_ai_published}
           classType={cls.class_type}
-          initialSuggestion={cls.ai_suggestion}
-          initialPublished={cls.ai_suggestion_published}
+          generalAI={cls.ai_suggestion}
+          generalAIPub={cls.ai_suggestion_published}
         />
       )}
 
@@ -178,7 +234,7 @@ export default function ClassDetails() {
             <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
             <h2 className="text-lg font-bold mb-4 text-indigo-900 dark:text-indigo-300 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-indigo-500" />
-              Follow-up Game (Coach Suggestion)
+              Follow-up Game (Session Overview)
             </h2>
             <div className="text-slate-700 dark:text-slate-300">
                <div className="whitespace-pre-wrap text-sm leading-relaxed">{cls.ai_suggestion.replace(/\*\*/g, '')}</div>
