@@ -50,26 +50,44 @@ export default function LogClass() {
 
   useEffect(() => {
     if (isEditMode) {
+      let isMounted = true;
+      const timeoutId = setTimeout(() => {
+        if (isMounted) setLoading(false);
+      }, 8000);
+
       async function fetchClass() {
-        const { data } = await supabase.from('classes').select('*').eq('id', id).single();
-        if (data) {
-          setDate(data.date);
-          setTime(data.time);
-          setClassType(data.class_type);
-          setTopic(data.topic || "");
-          setYoutubeUrl(data.youtube_url || "");
-          setAttendeesCount(data.attendees_count || 0);
-          setSelectedCurriculum(data.curriculum || []);
-          setConstraint1Title(data.constraint_1_title || "");
-          setConstraint1(data.constraint_1 || "");
-          setConstraint2Title(data.constraint_2_title || "");
-          setConstraint2(data.constraint_2 || "");
-          setConstraint3Title(data.constraint_3_title || "");
-          setConstraint3(data.constraint_3 || "");
+        try {
+          const { data, error } = await supabase.from('classes').select('*').eq('id', id).single();
+          if (error) throw error;
+          
+          if (data && isMounted) {
+            setDate(data.date);
+            setTime(data.time);
+            setClassType(data.class_type);
+            setTopic(data.topic || "");
+            setYoutubeUrl(data.youtube_url || "");
+            setAttendeesCount(data.attendees_count || 0);
+            setSelectedCurriculum(data.curriculum || []);
+            setConstraint1Title(data.constraint_1_title || "");
+            setConstraint1(data.constraint_1 || "");
+            setConstraint2Title(data.constraint_2_title || "");
+            setConstraint2(data.constraint_2 || "");
+            setConstraint3Title(data.constraint_3_title || "");
+            setConstraint3(data.constraint_3 || "");
+          }
+        } catch (err) {
+          console.error("Error fetching class to edit:", err);
+        } finally {
+          if (isMounted) setLoading(false);
+          clearTimeout(timeoutId);
         }
-        setLoading(false);
       }
       fetchClass();
+
+      return () => {
+        isMounted = false;
+        clearTimeout(timeoutId);
+      };
     }
   }, [id, isEditMode]);
 

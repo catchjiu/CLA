@@ -26,19 +26,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const sessionTimeout = setTimeout(() => setLoading(false), 8000);
+
     // Check active sessions and sets the user
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) console.error(error);
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchRole(session.user.id);
       } else {
         setLoading(false);
       }
+    }).catch(() => {
+      setLoading(false);
+    }).finally(() => {
+      clearTimeout(sessionTimeout);
     });
 
     // Listen for changes on auth state (logged in, signed out, etc.)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Only force loading UI on fresh sign-in to avoid blocking UI during background refreshes
         if (event === 'SIGNED_IN') {
           setLoading(true);
         }
@@ -58,6 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchRole = async (userId: string) => {
+    const roleTimeout = setTimeout(() => setLoading(false), 8000);
+
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -73,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('Error in fetchRole:', err);
     } finally {
+      clearTimeout(roleTimeout);
       setLoading(false);
     }
   };

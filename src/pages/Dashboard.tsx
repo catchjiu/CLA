@@ -31,6 +31,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    const timeoutId = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 8000);
+
     async function fetchDashboardData() {
       // Fetch classes including the new attendees_count and curriculum array
       const { data: classesData, error: classesError } = await supabase
@@ -79,10 +84,16 @@ export default function Dashboard() {
           setCurriculumStats(CURRICULUM_OPTIONS.map(sub => ({ subject: sub, coverage: 0 })));
         }
       }
-      setLoading(false);
+      if (isMounted) setLoading(false);
+      clearTimeout(timeoutId);
     }
     
     fetchDashboardData();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   return (
