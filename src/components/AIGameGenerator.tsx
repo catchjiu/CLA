@@ -15,6 +15,7 @@ export function AIGameGenerator({ topic, constraint1, constraint2, constraint3, 
   const [suggestion, setSuggestion] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [selectedConstraint, setSelectedConstraint] = useState<string>('all');
 
   const generateGame = async () => {
     setIsGenerating(true);
@@ -30,16 +31,24 @@ export function AIGameGenerator({ topic, constraint1, constraint2, constraint3, 
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+      let constraintText = '';
+      if (selectedConstraint === 'all') {
+        constraintText = `Existing Constraints/Mini-Games:\n1: ${constraint1 || 'None'}\n2: ${constraint2 || 'None'}\n3: ${constraint3 || 'None'}`;
+      } else if (selectedConstraint === '1') {
+        constraintText = `Target Constraint to build upon: ${constraint1}`;
+      } else if (selectedConstraint === '2') {
+        constraintText = `Target Constraint to build upon: ${constraint2}`;
+      } else if (selectedConstraint === '3') {
+        constraintText = `Target Constraint to build upon: ${constraint3}`;
+      }
+
       const prompt = `You are an expert Jiu-Jitsu head coach specializing in the Constraints-Led Approach (CLA) and Ecological Dynamics.
 Based on the following class session:
 Class Type: ${classType || 'BJJ'}
 Ecological Problem Space / Topic: ${topic || 'General Mat Time'}
-Existing Constraints/Mini-Games:
-1: ${constraint1 || 'None'}
-2: ${constraint2 || 'None'}
-3: ${constraint3 || 'None'}
+${constraintText}
 
-Please design ONE follow-up action-oriented mini-game (or an alternative constraint game) that builds upon this curriculum. 
+Please design ONE follow-up action-oriented mini-game (or an alternative constraint game) that specifically builds upon the targeted constraint(s) above. 
 Adhere to Ecological Dynamics: no isolated technique drilling. Focus on specifying task goals and constraints to encourage perception-action coupling and adaptation.
 
 Format your output purely as Markdown:
@@ -61,18 +70,6 @@ Be practical, straight to the point, and highly applicable to a real BJJ class s
     }
   };
 
-  if (!suggestion && !isGenerating && !error) {
-    return (
-      <button 
-        onClick={generateGame}
-        className="w-full mt-8 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-700 dark:text-indigo-400 border border-indigo-600/20 dark:border-indigo-500/30 rounded-xl p-4 flex items-center justify-center gap-2 font-semibold transition-all group shadow-sm"
-      >
-        <Sparkles className="w-5 h-5 group-hover:animate-pulse" />
-        Generate Follow-up CLA Game with Gemini AI
-      </button>
-    );
-  }
-
   return (
     <Card className="mt-8 border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-950/40 relative overflow-hidden">
       <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
@@ -82,11 +79,32 @@ Be practical, straight to the point, and highly applicable to a real BJJ class s
           <Sparkles className="w-5 h-5 text-indigo-500" /> 
           AI Coach Suggestion (Ecological Dynamics)
         </h3>
-        {suggestion && (
-          <button onClick={generateGame} disabled={isGenerating} className="text-slate-400 hover:text-indigo-600 transition-colors" title="Regenerate">
-            <RefreshCw className={`w-4 h-4 ${isGenerating ? 'animate-spin text-indigo-500' : ''}`} />
+      </div>
+
+      <div className="mb-6">
+        <label className="block text-xs font-medium text-indigo-900/70 dark:text-indigo-300/70 mb-1.5">Build upon which mini-game?</label>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <select 
+            value={selectedConstraint}
+            onChange={(e) => setSelectedConstraint(e.target.value)}
+            disabled={isGenerating}
+            className="flex-1 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-slate-100 outline-none disabled:opacity-50"
+          >
+            <option value="all">All Constraints (Entire Session)</option>
+            {constraint1 && <option value="1">Constraint 1: {constraint1}</option>}
+            {constraint2 && <option value="2">Constraint 2: {constraint2}</option>}
+            {constraint3 && <option value="3">Constraint 3: {constraint3}</option>}
+          </select>
+          
+          <button 
+            onClick={generateGame}
+            disabled={isGenerating}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white border-none rounded-lg px-4 py-2 flex items-center justify-center gap-2 text-sm font-semibold transition-all shadow-sm disabled:opacity-50 whitespace-nowrap"
+          >
+            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : (suggestion ? <RefreshCw className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />)}
+            {isGenerating ? 'Generating...' : (suggestion ? 'Regenerate' : 'Generate Game')}
           </button>
-        )}
+        </div>
       </div>
 
       {isGenerating && !suggestion && (
