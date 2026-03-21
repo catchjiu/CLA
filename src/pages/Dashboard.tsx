@@ -24,7 +24,7 @@ const CURRICULUM_OPTIONS = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { role, loading: authLoading } = useAuth();
   const [recentClasses, setRecentClasses] = useState<ClassLog[]>([]);
   const [stats, setStats] = useState({ classesRun: 0, totalAttendance: 0, avgAttendance: 0 });
   const [curriculumStats, setCurriculumStats] = useState<{subject: string, coverage: number}[]>([]);
@@ -101,10 +101,20 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-            {role === 'coach' ? 'Coach Dashboard' : 'Member Dashboard'}
+            {role === 'coach'
+              ? 'Coach Dashboard'
+              : role === 'member'
+                ? 'Member Dashboard'
+                : 'Dashboard'}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">
-            {role === 'coach' ? 'Manage curriculum coverage and log training sessions.' : 'View recent training sessions and curriculum progress.'}
+            {role === 'coach'
+              ? 'Manage curriculum coverage and log training sessions.'
+              : role === 'member'
+                ? 'View recent training sessions and curriculum progress.'
+                : authLoading
+                  ? 'Loading your profile…'
+                  : 'Syncing your role from the server. Refresh if this does not update.'}
           </p>
         </div>
         <div className="flex items-center gap-3">

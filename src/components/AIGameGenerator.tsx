@@ -160,13 +160,42 @@ Be practical, straight to the point, and highly applicable to a real BJJ class s
   const copySuggestion = async () => {
     const text = suggestion.trim();
     if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
+    setError('');
+
+    const fallbackCopy = (): boolean => {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        ta.style.top = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch {
+        return false;
+      }
+    };
+
+    const onSuccess = () => {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setError('Could not copy to clipboard.');
+    };
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        onSuccess();
+        return;
+      } catch {
+        /* use fallback on HTTP / blocked permission */
+      }
     }
+    if (fallbackCopy()) onSuccess();
+    else setError('Could not copy to clipboard.');
   };
 
   const handleTogglePublish = async () => {

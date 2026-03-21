@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
@@ -42,32 +42,41 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+const PROFILE_RETRIES = 3;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<Role>(null);
   const [loading, setLoading] = useState(true);
   const roleFetchGeneration = useRef(0);
   const lastFetchedUserIdRef = useRef<string | null>(null);
-  /** Supabase may emit SIGNED_IN again for an existing session; avoid re-blocking the whole app. */
   const committedSessionUserIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    const sessionTimeout = setTimeout(() => setLoading(false), 8000);
+  const fetchRole = useCallback(async (userId: string, authUser: User | null) => {
+    const generation = ++roleFetchGeneration.current;
+    if (lastFetchedUserIdRef.current !== userId) {
+      setRole(null);
+      lastFetchedUserIdRef.current = userId;
+    }
 
-    const fetchRole = async (userId: string, authUser: User | null) => {
-      const generation = ++roleFetchGeneration.current;
-      if (lastFetchedUserIdRef.current !== userId) {
-        setRole(null);
-        lastFetchedUserIdRef.current = userId;
+    const roleTimeout = setTimeout(() => {
+      if (generation === roleFetchGeneration.current) {
+        setLoading(false);
+      }
+    }, 8000);
+
+    try {
+      // Fresh JWT + metadata from Auth server (fixes stale client session on some hosts/CDNs)
+      let userForMeta: User | null = authUser;
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (!userErr && userData?.user?.id === userId) {
+        userForMeta = userData.user;
       }
 
-      const roleTimeout = setTimeout(() => {
-        if (generation === roleFetchGeneration.current) {
-          setLoading(false);
-        }
-      }, 8000);
+      let profileRole: unknown = undefined;
+      for (let attempt = 0; attempt < PROFILE_RETRIES; attempt++) {
+        if (generation !== roleFetchGeneration.current) return;
 
-      try {
         const { data, error } = await supabase
           .from('profiles')
           .select('role')
@@ -77,28 +86,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (generation !== roleFetchGeneration.current) return;
 
         if (error) {
-          console.error('Error fetching role:', error);
+          console.error('Error fetching role (attempt', attempt + 1, '):', error);
+        } else if (data?.role != null && String(data.role).trim() !== '') {
+          profileRole = data.role;
+          break;
         }
 
-        const resolved = resolveRoleFromUser(authUser, data?.role);
-        if (resolved) {
-          setRole(resolved);
+        if (attempt < PROFILE_RETRIES - 1) {
+          await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
         }
-      } catch (err) {
-        console.error('Error in fetchRole:', err);
-        if (generation === roleFetchGeneration.current) {
+      }
+
+      const resolved = resolveRoleFromUser(userForMeta, profileRole);
+      if (generation !== roleFetchGeneration.current) return;
+
+      if (resolved) {
+        setRole(resolved);
+      } else {
+        const fallback = resolveRoleFromUser(userForMeta, null);
+        if (fallback) setRole(fallback);
+      }
+    } catch (err) {
+      console.error('Error in fetchRole:', err);
+      if (generation === roleFetchGeneration.current) {
+        try {
+          const { data: userData } = await supabase.auth.getUser();
+          const u = userData?.user?.id === userId ? userData.user : authUser;
+          const fallback = resolveRoleFromUser(u ?? null, null);
+          if (fallback) setRole(fallback);
+        } catch {
           const fallback = resolveRoleFromUser(authUser, null);
           if (fallback) setRole(fallback);
         }
-      } finally {
-        clearTimeout(roleTimeout);
-        if (generation === roleFetchGeneration.current) {
-          setLoading(false);
-        }
       }
-    };
+    } finally {
+      clearTimeout(roleTimeout);
+      if (generation === roleFetchGeneration.current) {
+        setLoading(false);
+      }
+    }
+  }, []);
 
-    // Check active sessions and sets the user
+  useEffect(() => {
+    const sessionTimeout = setTimeout(() => setLoading(false), 8000);
+
     supabase.auth
       .getSession()
       .then(({ data: { session }, error }) => {
@@ -107,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(u);
         committedSessionUserIdRef.current = u?.id ?? null;
         if (session?.user) {
-          fetchRole(session.user.id, session.user);
+          void fetchRole(session.user.id, session.user);
         } else {
           setLoading(false);
         }
@@ -119,7 +150,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(sessionTimeout);
       });
 
-    // Listen for changes on auth state (logged in, signed out, etc.)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         const nextUser = session?.user ?? null;
@@ -152,7 +182,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchRole]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return;
+      void supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          void fetchRole(session.user.id, session.user);
+        }
+      });
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [fetchRole]);
 
   const signOut = async () => {
     roleFetchGeneration.current += 1;

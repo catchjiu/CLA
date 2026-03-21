@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 export function Header() {
-  const { user, role, signOut } = useAuth();
+  const { user, role, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -133,7 +133,15 @@ export function Header() {
           <>
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-900 rounded-full text-sm font-medium text-slate-700 dark:text-slate-300 capitalize">
               <Shield className="w-4 h-4 text-primary" />
-              <span className="tabular-nums">{role || 'member'} Mode</span>
+              <span className="tabular-nums">
+                {role === 'coach'
+                  ? 'Coach Mode'
+                  : role === 'member'
+                    ? 'Member Mode'
+                    : authLoading
+                      ? '…'
+                      : 'Pending'}
+              </span>
             </div>
 
             <button className="relative p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
@@ -151,7 +159,9 @@ export function Header() {
               <img src={bjjData.user.avatar} alt="User Avatar" className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-800 border-2 border-white dark:border-slate-800 shadow-sm" />
               <div className="hidden lg:block text-sm mr-2">
                 <div className="font-semibold text-slate-900 dark:text-white leading-none">{user.email?.split('@')[0] || 'User'}</div>
-                <div className="text-xs text-primary font-medium mt-1 capitalize">{role || 'Member'}</div>
+                <div className="text-xs text-primary font-medium mt-1 capitalize">
+                  {role === 'coach' ? 'Coach' : role === 'member' ? 'Member' : authLoading ? '…' : '—'}
+                </div>
               </div>
               <button onClick={handleSignOut} className="p-2 text-slate-400 hover:text-danger transition-colors group" title="Sign Out">
                  <LogOut className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
