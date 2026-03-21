@@ -40,3 +40,10 @@ The client checks both `user_metadata` and `app_metadata` for `role` / `user_rol
 ## After things are stable
 
 Keep `public.profiles.role` in sync with Auth (or rely on `get_my_role` + RLS) so you don’t depend on metadata forever.
+
+## “Second user works, first user doesn’t”
+
+The **first** account often logged in **before** `role` existed on the JWT, so the browser keeps an **old session**.
+
+1. Run **`supabase_fix_first_user_coach.sql`** in the SQL Editor for user `4d0cf250-ad7d-47fe-b4ca-092fe1126e26` (same pattern as the second user).
+2. On the device where the first account is broken: **Sign out** → **Sign in** again, or use a **private/incognito** window, or clear **site data** for your app domain so a **new** access token is issued.
