@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Card } from './ui/Card';
 import { supabase } from '../lib/supabase';
 import { SUPABASE_REQUEST_TIMEOUT_MS, withTimeout } from '../lib/withTimeout';
-import { Sparkles, Loader2, RefreshCw, Save, Edit2, Globe, Lock } from 'lucide-react';
+import { Sparkles, Loader2, RefreshCw, Save, Edit2, Globe, Lock, Copy, Check } from 'lucide-react';
 
 interface Props {
   classId: string;
@@ -40,6 +40,7 @@ export function AIGameGenerator({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isTogglingPublish, setIsTogglingPublish] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     switch (selectedConstraint) {
@@ -156,6 +157,18 @@ Be practical, straight to the point, and highly applicable to a real BJJ class s
     }
   };
 
+  const copySuggestion = async () => {
+    const text = suggestion.trim();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError('Could not copy to clipboard.');
+    }
+  };
+
   const handleTogglePublish = async () => {
     setIsTogglingPublish(true);
     setError('');
@@ -254,7 +267,18 @@ Be practical, straight to the point, and highly applicable to a real BJJ class s
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-indigo-100 dark:border-indigo-900/30">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={copySuggestion}
+                disabled={isSaving}
+                title="Copy AI game text to clipboard"
+                aria-label="Copy AI suggestion to clipboard"
+                className="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"
+              >
+                {copied ? <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                {copied ? 'Copied' : 'Copy'}
+              </button>
               {isEditing ? (
                 <button 
                   onClick={handleSave} 
