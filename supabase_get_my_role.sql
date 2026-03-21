@@ -14,3 +14,6 @@ $$;
 
 REVOKE ALL ON FUNCTION public.get_my_role() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_my_role() TO authenticated;
+
+-- Help PostgREST pick up the function without waiting (safe in SQL Editor).
+NOTIFY pgrst, 'reload schema';

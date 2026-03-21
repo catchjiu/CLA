@@ -37,55 +37,57 @@ export default function Dashboard() {
     }, 8000);
 
     async function fetchDashboardData() {
-      // Fetch classes including the new attendees_count and curriculum array
-      const { data: classesData, error: classesError } = await supabase
-        .from('classes')
-        .select(`id, date, time, class_type, topic, attendees_count, curriculum`)
-        .order('date', { ascending: false })
-        .order('time', { ascending: false })
-        .limit(20);
+      try {
+        const { data: classesData, error: classesError } = await supabase
+          .from('classes')
+          .select(`id, date, time, class_type, topic, attendees_count, curriculum`)
+          .order('date', { ascending: false })
+          .order('time', { ascending: false })
+          .limit(20);
 
-      if (classesError) {
-        console.error("Error fetching classes:", classesError);
-      } else if (classesData) {
-        const totalClasses = classesData.length;
-        
-        // Calculate basic stats
-        const formattedClasses = classesData.map((cls: any) => ({
-          id: cls.id,
-          date: new Date(cls.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-          time: cls.time,
-          class_type: cls.class_type,
-          topic: cls.topic || 'Open Mat',
-          attendees: cls.attendees_count || 0,
-          curriculum: cls.curriculum || [],
-        }));
-        
-        setRecentClasses(formattedClasses);
-        
-        const totalAtt = formattedClasses.reduce((sum, cls) => sum + cls.attendees, 0);
-        setStats({
-          classesRun: totalClasses,
-          totalAttendance: totalAtt,
-          avgAttendance: totalClasses > 0 ? Math.round((totalAtt / totalClasses) * 10) / 10 : 0
-        });
+        if (classesError) {
+          console.error('Error fetching classes:', classesError);
+        } else if (classesData) {
+          const totalClasses = classesData.length;
 
-        // Calculate dynamic Curriculum Coverage
-        if (totalClasses > 0) {
-          const coverage = CURRICULUM_OPTIONS.map(subject => {
-            const count = formattedClasses.filter(cls => cls.curriculum.includes(subject)).length;
-            return {
-              subject,
-              coverage: Math.round((count / totalClasses) * 100)
-            };
+          const formattedClasses = classesData.map((cls: any) => ({
+            id: cls.id,
+            date: new Date(cls.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+            time: cls.time,
+            class_type: cls.class_type,
+            topic: cls.topic || 'Open Mat',
+            attendees: cls.attendees_count || 0,
+            curriculum: cls.curriculum || [],
+          }));
+
+          setRecentClasses(formattedClasses);
+
+          const totalAtt = formattedClasses.reduce((sum, cls) => sum + cls.attendees, 0);
+          setStats({
+            classesRun: totalClasses,
+            totalAttendance: totalAtt,
+            avgAttendance: totalClasses > 0 ? Math.round((totalAtt / totalClasses) * 10) / 10 : 0
           });
-          setCurriculumStats(coverage);
-        } else {
-          setCurriculumStats(CURRICULUM_OPTIONS.map(sub => ({ subject: sub, coverage: 0 })));
+
+          if (totalClasses > 0) {
+            const coverage = CURRICULUM_OPTIONS.map(subject => {
+              const count = formattedClasses.filter(cls => cls.curriculum.includes(subject)).length;
+              return {
+                subject,
+                coverage: Math.round((count / totalClasses) * 100)
+              };
+            });
+            setCurriculumStats(coverage);
+          } else {
+            setCurriculumStats(CURRICULUM_OPTIONS.map(sub => ({ subject: sub, coverage: 0 })));
+          }
         }
+      } catch (e) {
+        console.error('Dashboard fetch failed:', e);
+      } finally {
+        if (isMounted) setLoading(false);
+        clearTimeout(timeoutId);
       }
-      if (isMounted) setLoading(false);
-      clearTimeout(timeoutId);
     }
     
     fetchDashboardData();

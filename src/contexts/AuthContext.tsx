@@ -66,66 +66,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, 8000);
 
     try {
-      // Fresh JWT + metadata from Auth server (fixes stale client session on some hosts/CDNs)
+      await supabase.auth.refreshSession();
+
       let userForMeta: User | null = authUser;
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (!userErr && userData?.user?.id === userId) {
         userForMeta = userData.user;
       }
 
-      let profileRole: unknown = undefined;
-      for (let attempt = 0; attempt < PROFILE_RETRIES; attempt++) {
-        if (generation !== roleFetchGeneration.current) return;
+      let roleResolved: Role = null;
 
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', userId)
-          .maybeSingle();
-
-        if (generation !== roleFetchGeneration.current) return;
-
-        if (error) {
-          console.error('Error fetching role (attempt', attempt + 1, '):', error);
-        } else if (data?.role != null && String(data.role).trim() !== '') {
-          profileRole = data.role;
-          break;
-        }
-
-        if (attempt < PROFILE_RETRIES - 1) {
-          await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
-        }
-      }
-
-      let roleResolved: Role = resolveRoleFromUser(userForMeta, profileRole);
-      if (generation !== roleFetchGeneration.current) return;
-
-      if (roleResolved) {
-        setRole(roleResolved);
-      } else {
-        // Direct table read often returns 0 rows under RLS with no error — RPC uses SECURITY DEFINER.
+      // 1) RPC first — PostgREST table reads often return 0 rows under RLS with no error.
+      if (generation === roleFetchGeneration.current) {
         try {
-          const { data: rpcRole, error: rpcErr } = await supabase.rpc('get_my_role');
+          const { data: rpcRole, error: rpcErr } = await supabase.rpc('get_my_role', {});
           if (generation !== roleFetchGeneration.current) return;
-          if (!rpcErr && rpcRole != null) {
+          if (!rpcErr && rpcRole != null && String(rpcRole).trim() !== '') {
             const r = normalizeRole(
               typeof rpcRole === 'string' ? rpcRole : String(rpcRole)
             );
-            if (r) {
-              setRole(r);
-              roleResolved = r;
-            }
+            if (r) roleResolved = r;
           } else if (rpcErr) {
-            console.warn('get_my_role:', rpcErr.message);
+            const msg = rpcErr.message ?? '';
+            if (msg.includes('function') && msg.includes('does not exist')) {
+              console.warn(
+                'Run supabase_get_my_role.sql in Supabase SQL Editor (Production), then reload.'
+              );
+            } else {
+              console.warn('get_my_role:', rpcErr);
+            }
           }
         } catch (e) {
-          console.warn('get_my_role RPC failed (run supabase_get_my_role.sql?):', e);
+          console.warn('get_my_role RPC failed:', e);
+        }
+      }
+
+      // 2) Direct profiles read (when RLS allows it)
+      let profileRole: unknown = undefined;
+      if (!roleResolved) {
+        for (let attempt = 0; attempt < PROFILE_RETRIES; attempt++) {
+          if (generation !== roleFetchGeneration.current) return;
+
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .maybeSingle();
+
+          if (generation !== roleFetchGeneration.current) return;
+
+          if (error) {
+            console.error('Error fetching role (attempt', attempt + 1, '):', error);
+          } else if (data?.role != null && String(data.role).trim() !== '') {
+            profileRole = data.role;
+            break;
+          }
+
+          if (attempt < PROFILE_RETRIES - 1) {
+            await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+          }
         }
 
-        if (!roleResolved && generation === roleFetchGeneration.current) {
-          const fallback = resolveRoleFromUser(userForMeta, null);
-          if (fallback) setRole(fallback);
-        }
+        roleResolved = resolveRoleFromUser(userForMeta, profileRole);
+      }
+
+      // 3) JWT app_metadata / user_metadata only
+      if (!roleResolved && generation === roleFetchGeneration.current) {
+        roleResolved = resolveRoleFromUser(userForMeta, null);
+      }
+
+      if (generation === roleFetchGeneration.current && roleResolved) {
+        setRole(roleResolved);
       }
     } catch (err) {
       console.error('Error in fetchRole:', err);
