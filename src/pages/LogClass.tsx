@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../lib/supabase';
-import { SUPABASE_REQUEST_TIMEOUT_MS, withTimeout } from '../lib/withTimeout';
 import { ArrowLeft, CheckSquare, Square, Shield, Loader2, Trash2 } from 'lucide-react';
+
+/** Backup reset if JS ever stalls past the global fetch abort (~40s). */
+const SAVE_FAILSAFE_MS = 55_000;
 
 const getYoutubeId = (url: string) => {
   if (!url) return null;
@@ -49,6 +51,7 @@ export default function LogClass() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(isEditMode);
+  const saveLockRef = useRef(false);
 
   useEffect(() => {
     if (isEditMode) {
@@ -101,10 +104,16 @@ export default function LogClass() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saveLockRef.current) return;
+    saveLockRef.current = true;
+
     setIsSubmitting(true);
     setFormError('');
 
-    const failSafe = window.setTimeout(() => setIsSubmitting(false), SUPABASE_REQUEST_TIMEOUT_MS + 8_000);
+    const failSafe = window.setTimeout(() => {
+      saveLockRef.current = false;
+      setIsSubmitting(false);
+    }, SAVE_FAILSAFE_MS);
 
     const payload = {
       date,
@@ -124,28 +133,13 @@ export default function LogClass() {
 
     try {
       if (isEditMode) {
-        const { data, error } = await withTimeout(
-          supabase.from('classes').update(payload).eq('id', id).select('id'),
-          SUPABASE_REQUEST_TIMEOUT_MS,
-          'Save session'
-        );
+        const { error } = await supabase.from('classes').update(payload).eq('id', id);
         if (error) throw error;
-        if (!data?.length) {
-          throw new Error(
-            'Update did not save any rows. You may lack permission or this session no longer exists.'
-          );
-        }
         navigate(`/class/${id}`);
       } else {
-        const { data, error } = await withTimeout(
-          supabase.from('classes').insert([payload]).select('id').maybeSingle(),
-          SUPABASE_REQUEST_TIMEOUT_MS,
-          'Save session'
-        );
+        // No .select() — avoids a second round-trip / RETURNING hang when RLS differs on read vs insert.
+        const { error } = await supabase.from('classes').insert([payload]);
         if (error) throw error;
-        if (!data?.id) {
-          throw new Error('Insert did not create a row. Check your connection and database setup.');
-        }
         navigate('/dashboard');
       }
     } catch (err: unknown) {
@@ -159,6 +153,7 @@ export default function LogClass() {
       setFormError(message);
     } finally {
       window.clearTimeout(failSafe);
+      saveLockRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -168,17 +163,10 @@ export default function LogClass() {
     
     setIsDeleting(true);
     setFormError('');
-    const failSafe = window.setTimeout(() => setIsDeleting(false), SUPABASE_REQUEST_TIMEOUT_MS + 8_000);
+    const failSafe = window.setTimeout(() => setIsDeleting(false), SAVE_FAILSAFE_MS);
     try {
-      const { data, error } = await withTimeout(
-        supabase.from('classes').delete().eq('id', id).select('id'),
-        SUPABASE_REQUEST_TIMEOUT_MS,
-        'Delete session'
-      );
+      const { error } = await supabase.from('classes').delete().eq('id', id);
       if (error) throw error;
-      if (!data?.length) {
-        throw new Error('Nothing was deleted. You may lack permission or this session no longer exists.');
-      }
       navigate('/dashboard');
     } catch (err: unknown) {
       console.error('Failed to delete class:', err);
