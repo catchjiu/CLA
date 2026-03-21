@@ -76,8 +76,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       let roleResolved: Role = null;
 
-      // 1) RPC first — PostgREST table reads often return 0 rows under RLS with no error.
-      if (generation === roleFetchGeneration.current) {
+      // 1) JWT user_metadata / app_metadata (quick fix in Supabase Dashboard — see docs/auth-role-workaround.md)
+      roleResolved = resolveRoleFromUser(userForMeta, null);
+
+      // 2) RPC — works when RLS blocks REST SELECT on profiles
+      if (!roleResolved && generation === roleFetchGeneration.current) {
         try {
           const { data: rpcRole, error: rpcErr } = await supabase.rpc('get_my_role', {});
           if (generation !== roleFetchGeneration.current) return;
@@ -101,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 2) Direct profiles read (when RLS allows it)
+      // 3) Direct profiles read (when RLS allows it)
       let profileRole: unknown = undefined;
       if (!roleResolved) {
         for (let attempt = 0; attempt < PROFILE_RETRIES; attempt++) {
@@ -128,11 +131,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         roleResolved = resolveRoleFromUser(userForMeta, profileRole);
-      }
-
-      // 3) JWT app_metadata / user_metadata only
-      if (!roleResolved && generation === roleFetchGeneration.current) {
-        roleResolved = resolveRoleFromUser(userForMeta, null);
       }
 
       if (generation === roleFetchGeneration.current && roleResolved) {
