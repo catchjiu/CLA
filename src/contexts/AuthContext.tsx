@@ -4,6 +4,28 @@ import type { User } from '@supabase/supabase-js';
 
 type Role = 'coach' | 'member' | null;
 
+function normalizeRole(raw: unknown): Role {
+  if (raw == null || typeof raw !== 'string') return null;
+  const r = raw.trim().toLowerCase();
+  if (r === 'coach' || r === 'member') return r;
+  return null;
+}
+
+/** Role from DB row, else Supabase Auth app/user metadata (e.g. dashboard claims). */
+function resolveRoleFromUser(authUser: User | null, profileRole: unknown): Role {
+  const fromProfile = normalizeRole(profileRole);
+  if (fromProfile) return fromProfile;
+  if (!authUser) return null;
+  const app = authUser.app_metadata as Record<string, unknown> | undefined;
+  const meta = authUser.user_metadata as Record<string, unknown> | undefined;
+  return (
+    normalizeRole(app?.role) ||
+    normalizeRole(app?.user_role) ||
+    normalizeRole(meta?.role) ||
+    normalizeRole(meta?.user_role)
+  );
+}
+
 interface AuthContextType {
   user: User | null;
   role: Role;
@@ -32,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const sessionTimeout = setTimeout(() => setLoading(false), 8000);
 
-    const fetchRole = async (userId: string) => {
+    const fetchRole = async (userId: string, authUser: User | null) => {
       const generation = ++roleFetchGeneration.current;
       if (lastFetchedUserIdRef.current !== userId) {
         setRole(null);
@@ -50,17 +72,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('profiles')
           .select('role')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
         if (generation !== roleFetchGeneration.current) return;
 
         if (error) {
           console.error('Error fetching role:', error);
-        } else if (data) {
-          setRole(data.role as Role);
+        }
+
+        const resolved = resolveRoleFromUser(authUser, data?.role);
+        if (resolved) {
+          setRole(resolved);
         }
       } catch (err) {
         console.error('Error in fetchRole:', err);
+        if (generation === roleFetchGeneration.current) {
+          const fallback = resolveRoleFromUser(authUser, null);
+          if (fallback) setRole(fallback);
+        }
       } finally {
         clearTimeout(roleTimeout);
         if (generation === roleFetchGeneration.current) {
@@ -78,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(u);
         committedSessionUserIdRef.current = u?.id ?? null;
         if (session?.user) {
-          fetchRole(session.user.id);
+          fetchRole(session.user.id, session.user);
         } else {
           setLoading(false);
         }
@@ -109,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         committedSessionUserIdRef.current = nextId;
 
         if (nextUser) {
-          await fetchRole(nextUser.id);
+          await fetchRole(nextUser.id, nextUser);
         } else {
           roleFetchGeneration.current += 1;
           lastFetchedUserIdRef.current = null;
@@ -129,7 +158,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     roleFetchGeneration.current += 1;
     lastFetchedUserIdRef.current = null;
     committedSessionUserIdRef.current = null;
-    await supabase.auth.signOut();
+    setUser(null);
+    setRole(null);
+    setLoading(false);
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (e) {
+      console.error('signOut:', e);
+    }
   };
 
   return (
