@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ classesRun: 0, totalAttendance: 0, avgAttendance: 0 });
   const [curriculumStats, setCurriculumStats] = useState<{subject: string, coverage: number}[]>([]);
   const [loading, setLoading] = useState(true);
+  const [classesError, setClassesError] = useState('');
 
   useEffect(() => {
     if (authLoading) return;
@@ -49,43 +50,48 @@ export default function Dashboard() {
 
         if (classesError) {
           console.error('Error fetching classes:', classesError);
-        } else if (classesData) {
-          const totalClasses = classesData.length;
+          setClassesError(classesError.message || 'Could not load classes.');
+        } else {
+          setClassesError('');
+          if (classesData) {
+            const totalClasses = classesData.length;
 
-          const formattedClasses = classesData.map((cls: any) => ({
-            id: cls.id,
-            date: new Date(cls.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-            time: cls.time,
-            class_type: cls.class_type,
-            topic: cls.topic || 'Open Mat',
-            attendees: cls.attendees_count || 0,
-            curriculum: cls.curriculum || [],
-          }));
+            const formattedClasses = classesData.map((cls: any) => ({
+              id: cls.id,
+              date: new Date(cls.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+              time: cls.time,
+              class_type: cls.class_type,
+              topic: cls.topic || 'Open Mat',
+              attendees: cls.attendees_count || 0,
+              curriculum: cls.curriculum || [],
+            }));
 
-          setRecentClasses(formattedClasses);
+            setRecentClasses(formattedClasses);
 
-          const totalAtt = formattedClasses.reduce((sum, cls) => sum + cls.attendees, 0);
-          setStats({
-            classesRun: totalClasses,
-            totalAttendance: totalAtt,
-            avgAttendance: totalClasses > 0 ? Math.round((totalAtt / totalClasses) * 10) / 10 : 0
-          });
-
-          if (totalClasses > 0) {
-            const coverage = CURRICULUM_OPTIONS.map(subject => {
-              const count = formattedClasses.filter(cls => cls.curriculum.includes(subject)).length;
-              return {
-                subject,
-                coverage: Math.round((count / totalClasses) * 100)
-              };
+            const totalAtt = formattedClasses.reduce((sum, cls) => sum + cls.attendees, 0);
+            setStats({
+              classesRun: totalClasses,
+              totalAttendance: totalAtt,
+              avgAttendance: totalClasses > 0 ? Math.round((totalAtt / totalClasses) * 10) / 10 : 0
             });
-            setCurriculumStats(coverage);
-          } else {
-            setCurriculumStats(CURRICULUM_OPTIONS.map(sub => ({ subject: sub, coverage: 0 })));
+
+            if (totalClasses > 0) {
+              const coverage = CURRICULUM_OPTIONS.map(subject => {
+                const count = formattedClasses.filter(cls => cls.curriculum.includes(subject)).length;
+                return {
+                  subject,
+                  coverage: Math.round((count / totalClasses) * 100)
+                };
+              });
+              setCurriculumStats(coverage);
+            } else {
+              setCurriculumStats(CURRICULUM_OPTIONS.map(sub => ({ subject: sub, coverage: 0 })));
+            }
           }
         }
       } catch (e) {
         console.error('Dashboard fetch failed:', e);
+        setClassesError(e instanceof Error ? e.message : 'Could not load classes.');
       } finally {
         if (isMounted) setLoading(false);
         clearTimeout(timeoutId);
@@ -102,6 +108,18 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full animate-in fade-in duration-500">
+      {classesError && (
+        <div className="mb-6 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+          <p className="font-medium">{classesError}</p>
+          <p className="mt-2 text-xs opacity-90">
+            If you are logged in but rows are missing, run{' '}
+            <code className="rounded bg-black/10 px-1 py-0.5">supabase_classes_rls_authenticated.sql</code>{' '}
+            in the Supabase SQL Editor so the <code className="rounded bg-black/10 px-0.5">authenticated</code> role can read{' '}
+            <code className="rounded bg-black/10 px-0.5">classes</code>.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
@@ -215,10 +233,17 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                {recentClasses.length === 0 && !loading && (
+                {recentClasses.length === 0 && !loading && classesError && (
                   <tr>
                     <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
-                      No sessions logged yet. Click "Log Session" to start tracking!
+                      Sessions could not be loaded. See the notice at the top of the page.
+                    </td>
+                  </tr>
+                )}
+                {recentClasses.length === 0 && !loading && !classesError && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                      No sessions logged yet. Click &quot;Log Session&quot; to start tracking!
                     </td>
                   </tr>
                 )}
