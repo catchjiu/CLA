@@ -1,12 +1,13 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { roleFromAccessToken } from '../lib/jwtClaims';
 import type { User } from '@supabase/supabase-js';
 
 type Role = 'coach' | 'member' | null;
 
 function normalizeRole(raw: unknown): Role {
-  if (raw == null || typeof raw !== 'string') return null;
-  const r = raw.trim().toLowerCase();
+  if (raw == null) return null;
+  const r = String(raw).trim().toLowerCase();
   if (r === 'coach' || r === 'member') return r;
   return null;
 }
@@ -68,16 +69,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await supabase.auth.refreshSession();
 
+      let roleResolved: Role = null;
+
+      // 1) Read role from the refreshed access token (getUser() can lag behind SQL/dashboard edits)
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (token) {
+        roleResolved = roleFromAccessToken(token);
+      }
+
       let userForMeta: User | null = authUser;
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (!userErr && userData?.user?.id === userId) {
         userForMeta = userData.user;
       }
 
-      let roleResolved: Role = null;
-
-      // 1) JWT user_metadata / app_metadata (quick fix in Supabase Dashboard — see docs/auth-role-workaround.md)
-      roleResolved = resolveRoleFromUser(userForMeta, null);
+      if (!roleResolved && generation === roleFetchGeneration.current) {
+        roleResolved = resolveRoleFromUser(userForMeta, null);
+      }
 
       // 2) RPC — works when RLS blocks REST SELECT on profiles
       if (!roleResolved && generation === roleFetchGeneration.current) {

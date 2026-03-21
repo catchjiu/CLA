@@ -31,6 +31,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return;
+
     let isMounted = true;
     const timeoutId = setTimeout(() => {
       if (isMounted) setLoading(false);
@@ -96,7 +98,7 @@ export default function Dashboard() {
       isMounted = false;
       clearTimeout(timeoutId);
     };
-  }, []);
+  }, [authLoading]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full animate-in fade-in duration-500">
