@@ -6,16 +6,21 @@ The app reads **`role` from the JWT** first (then RPC, then the `profiles` table
 
 1. Open your project: **Authentication** → **Users**.
 2. Click the user (e.g. `catchjiujitsu`).
-3. Scroll to **User metadata** (or **Raw User Meta Data** in older UI).
-4. Add or merge this JSON (use valid JSON — double quotes):
+3. Scroll to **User metadata** (or **Raw User Meta Data** / `raw_user_meta_data` in the DB).
+4. **Merge** `role` into whatever is already there — do **not** delete existing keys like `email_verified`.
+
+   Example: if you currently only have `email_verified`, the full user metadata JSON should look like:
 
 ```json
 {
+  "email_verified": true,
   "role": "coach"
 }
 ```
 
-For a **member**, use `"role": "member"` instead.
+   Or use the **Add field** UI: key `role`, value `coach` (plain text).
+
+   For a **member**, use `"role": "member"` instead.
 
 5. **Save** the user.
 6. In the app: **Sign out** and **sign in again** (or hard refresh). The new JWT will include `role` and the UI should show **Coach**.
