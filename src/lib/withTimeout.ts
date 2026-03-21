@@ -1,5 +1,5 @@
 /** Default cap for Supabase browser fetches that might hang (sleep, network stalls). */
-export const SUPABASE_REQUEST_TIMEOUT_MS = 35_000;
+export const SUPABASE_REQUEST_TIMEOUT_MS = 40_000;
 
 export function withTimeout<T>(promise: PromiseLike<T>, ms: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {

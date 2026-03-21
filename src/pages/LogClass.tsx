@@ -47,6 +47,7 @@ export default function LogClass() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(isEditMode);
 
   useEffect(() => {
@@ -101,6 +102,9 @@ export default function LogClass() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setFormError('');
+
+    const failSafe = window.setTimeout(() => setIsSubmitting(false), SUPABASE_REQUEST_TIMEOUT_MS + 8_000);
 
     const payload = {
       date,
@@ -147,9 +151,14 @@ export default function LogClass() {
     } catch (err: unknown) {
       console.error('Failed to log class:', err);
       const message =
-        err instanceof Error ? err.message : 'Error updating database. Please try again.';
-      alert(message);
+        err instanceof Error && err.name === 'AbortError'
+          ? 'Request timed out or was cancelled. Check your connection and try again.'
+          : err instanceof Error
+            ? err.message
+            : 'Error updating database. Please try again.';
+      setFormError(message);
     } finally {
+      window.clearTimeout(failSafe);
       setIsSubmitting(false);
     }
   };
@@ -158,6 +167,8 @@ export default function LogClass() {
     if (!window.confirm("Are you sure you want to permanently delete this session?")) return;
     
     setIsDeleting(true);
+    setFormError('');
+    const failSafe = window.setTimeout(() => setIsDeleting(false), SUPABASE_REQUEST_TIMEOUT_MS + 8_000);
     try {
       const { data, error } = await withTimeout(
         supabase.from('classes').delete().eq('id', id).select('id'),
@@ -171,9 +182,15 @@ export default function LogClass() {
       navigate('/dashboard');
     } catch (err: unknown) {
       console.error('Failed to delete class:', err);
-      const message = err instanceof Error ? err.message : 'Error deleting session. Please try again.';
-      alert(message);
+      const message =
+        err instanceof Error && err.name === 'AbortError'
+          ? 'Request timed out or was cancelled. Check your connection and try again.'
+          : err instanceof Error
+            ? err.message
+            : 'Error deleting session. Please try again.';
+      setFormError(message);
     } finally {
+      window.clearTimeout(failSafe);
       setIsDeleting(false);
     }
   };
@@ -201,6 +218,11 @@ export default function LogClass() {
 
       <form onSubmit={handleSave} className="space-y-6">
         <Card>
+          {formError && (
+            <div className="mb-6 p-4 rounded-lg bg-danger/10 text-danger text-sm font-medium border border-danger/20">
+              {formError}
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-5">
               <h2 className="font-bold text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800">Time & Format</h2>
