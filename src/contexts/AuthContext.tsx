@@ -97,14 +97,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      const resolved = resolveRoleFromUser(userForMeta, profileRole);
+      let roleResolved: Role = resolveRoleFromUser(userForMeta, profileRole);
       if (generation !== roleFetchGeneration.current) return;
 
-      if (resolved) {
-        setRole(resolved);
+      if (roleResolved) {
+        setRole(roleResolved);
       } else {
-        const fallback = resolveRoleFromUser(userForMeta, null);
-        if (fallback) setRole(fallback);
+        // Direct table read often returns 0 rows under RLS with no error — RPC uses SECURITY DEFINER.
+        try {
+          const { data: rpcRole, error: rpcErr } = await supabase.rpc('get_my_role');
+          if (generation !== roleFetchGeneration.current) return;
+          if (!rpcErr && rpcRole != null) {
+            const r = normalizeRole(
+              typeof rpcRole === 'string' ? rpcRole : String(rpcRole)
+            );
+            if (r) {
+              setRole(r);
+              roleResolved = r;
+            }
+          } else if (rpcErr) {
+            console.warn('get_my_role:', rpcErr.message);
+          }
+        } catch (e) {
+          console.warn('get_my_role RPC failed (run supabase_get_my_role.sql?):', e);
+        }
+
+        if (!roleResolved && generation === roleFetchGeneration.current) {
+          const fallback = resolveRoleFromUser(userForMeta, null);
+          if (fallback) setRole(fallback);
+        }
       }
     } catch (err) {
       console.error('Error in fetchRole:', err);
