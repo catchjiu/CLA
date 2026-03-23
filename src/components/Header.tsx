@@ -1,4 +1,4 @@
-import { Search, Bell, Shield, LogOut, Loader2, Calendar } from 'lucide-react';
+import { Search, Bell, Shield, LogOut, Loader2, Calendar, RefreshCw } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { bjjData } from '../data/bjj-library';
@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 export function Header() {
-  const { user, role, loading: authLoading, signOut } = useAuth();
+  const { user, role, loading: authLoading, signOut, refreshRole } = useAuth();
   const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -131,17 +131,29 @@ export function Header() {
       <div className="flex items-center gap-4">
         {user ? (
           <>
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-900 rounded-full text-sm font-medium text-slate-700 dark:text-slate-300 capitalize">
-              <Shield className="w-4 h-4 text-primary" />
-              <span className="tabular-nums">
-                {role === 'coach'
-                  ? 'Coach Mode'
-                  : role === 'member'
-                    ? 'Member Mode'
-                    : authLoading
-                      ? '…'
-                      : 'Pending'}
-              </span>
+            <div className="hidden sm:flex items-center gap-1.5">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-900 rounded-full text-sm font-medium text-slate-700 dark:text-slate-300 capitalize">
+                <Shield className="w-4 h-4 text-primary shrink-0" />
+                <span className="tabular-nums">
+                  {role === 'coach'
+                    ? 'Coach Mode'
+                    : role === 'member'
+                      ? 'Member Mode'
+                      : authLoading
+                        ? '…'
+                        : 'Role not set'}
+                </span>
+              </div>
+              {!authLoading && !role && (
+                <button
+                  type="button"
+                  onClick={() => void refreshRole()}
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  title="Retry loading role"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             <button className="relative p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">

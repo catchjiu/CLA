@@ -1,8 +1,29 @@
-# Quick fix: role stuck as “Member” / “Pending” (coach on `profiles` but not in the app)
+# Quick fix: role stuck as “Member” / “Role not set” / “Pending” (coach on `profiles` but not in the app)
+
+## Stuck on “Role not set” (badge) or “Pending”
+
+The UI shows **Role not set** when the app cannot read `coach` or `member` from any of:
+
+1. **JWT** (`user_metadata` / `app_metadata` `role`) — requires **sign out + sign in** after you change metadata in the dashboard.  
+2. **RPC** `get_my_role()` — deploy **`supabase_get_my_role.sql`**.  
+3. **`public.profiles`** — you need a row for your user id with `role` set.
+
+Most common: **no row in `public.profiles`** for that account. Fix:
+
+1. Run **`supabase_backfill_profiles_from_auth.sql`** (adds missing `profiles` rows for everyone in `auth.users`, default `member`).  
+2. Run **`profiles_rls.sql`** so authenticated users can read/update their own row.  
+3. For **coaches**, set `role` to `coach` (Auth metadata and/or `UPDATE public.profiles …`, or use **`supabase_set_user_coach.sql`** with your user id).  
+4. **Sign out** and **sign in** so the JWT picks up metadata changes.
+
+Use **Retry sync** in the app header after fixing Supabase.
+
+---
+
+## Set `role` in Auth (JWT) so the app picks it up fast
 
 The app reads **`role` from the JWT** first (then RPC, then the `profiles` table). You can set the role in **Supabase Auth** so it works immediately without waiting on RLS/RPC.
 
-## Steps (Supabase Dashboard)
+### Steps (Supabase Dashboard)
 
 1. Open your project: **Authentication** → **Users**.
 2. Click the user (e.g. `catchjiujitsu`).

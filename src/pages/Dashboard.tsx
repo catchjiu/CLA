@@ -24,7 +24,7 @@ const CURRICULUM_OPTIONS = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { role, loading: authLoading } = useAuth();
+  const { role, loading: authLoading, refreshRole } = useAuth();
   const [recentClasses, setRecentClasses] = useState<ClassLog[]>([]);
   const [stats, setStats] = useState({ classesRun: 0, totalAttendance: 0, avgAttendance: 0 });
   const [curriculumStats, setCurriculumStats] = useState<{subject: string, coverage: number}[]>([]);
@@ -129,14 +129,30 @@ export default function Dashboard() {
                 ? 'Member Dashboard'
                 : 'Dashboard'}
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
             {role === 'coach'
               ? 'Manage curriculum coverage and log training sessions.'
               : role === 'member'
                 ? 'View recent training sessions and curriculum progress.'
                 : authLoading
                   ? 'Loading your profile…'
-                  : 'Syncing your role from the server. Refresh if this does not update.'}
+                  : (
+                    <>
+                      No coach/member role was found for this login. In Supabase: add a{' '}
+                      <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">profiles</code> row (or run{' '}
+                      <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">supabase_backfill_profiles_from_auth.sql</code>
+                      ), deploy <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">supabase_get_my_role.sql</code>, set Auth user metadata{' '}
+                      <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">role</code> to <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">coach</code> or{' '}
+                      <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">member</code>, then <strong>sign out and sign in</strong>.{' '}
+                      <button
+                        type="button"
+                        className="text-primary font-semibold underline underline-offset-2"
+                        onClick={() => void refreshRole()}
+                      >
+                        Retry sync
+                      </button>
+                    </>
+                  )}
           </p>
         </div>
         <div className="flex items-center gap-3">

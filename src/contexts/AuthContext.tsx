@@ -32,6 +32,8 @@ interface AuthContextType {
   role: Role;
   loading: boolean;
   signOut: () => Promise<void>;
+  /** Re-fetch role from JWT, get_my_role RPC, and profiles (e.g. after fixing Supabase). */
+  refreshRole: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -39,6 +41,7 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   loading: true,
   signOut: async () => {},
+  refreshRole: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -250,8 +253,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshRole = useCallback(async () => {
+    const u = user;
+    if (!u) return;
+    setLoading(true);
+    await fetchRole(u.id, u);
+  }, [user, fetchRole]);
+
   return (
-    <AuthContext.Provider value={{ user, role, loading, signOut }}>
+    <AuthContext.Provider value={{ user, role, loading, signOut, refreshRole }}>
       {children}
     </AuthContext.Provider>
   );
