@@ -8,6 +8,16 @@ The UI shows **Role not set** when the app cannot read `coach` or `member` from 
 2. **RPC** `get_my_role()` — deploy **`supabase_get_my_role.sql`**.  
 3. **`public.profiles`** — you need a row for your user id with `role` set.
 
+### “I see coach rows in `profiles` but the app still says Role not set”
+
+The app only reads the row where **`profiles.id` = your logged-in user id** (same as **Authentication → Users** → UUID). Other people’s rows do not apply.
+
+1. In the app, use **Copy id** on the dashboard (or copy UUID from Auth).  
+2. In **Table Editor → `profiles`**, confirm a row exists with **`id` = that exact UUID**.  
+3. If not, run **`supabase_profiles_upsert_for_user.sql`** (replace `YOUR_USER_UUID`), then sign out and sign in.
+
+---
+
 Most common: **no row in `public.profiles`** for that account. Fix:
 
 1. Run **`supabase_backfill_profiles_from_auth.sql`** (adds missing `profiles` rows for everyone in `auth.users`, default `member`).  
@@ -16,6 +26,12 @@ Most common: **no row in `public.profiles`** for that account. Fix:
 4. **Sign out** and **sign in** so the JWT picks up metadata changes.
 
 Use **Retry sync** in the app header after fixing Supabase.
+
+**Production site still shows old help text or “Role not set” after SQL?**
+
+1. **Redeploy** the latest app (e.g. `eco-cla.com`) so the bundle includes the role fix and the **“Your user id”** panel on the dashboard.  
+2. Confirm hosting **environment variables** `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` point at the **same** Supabase project where you edited `profiles` / Auth.  
+3. **Sign out** and **sign in** again after changing `auth.users` metadata.
 
 ---
 

@@ -74,12 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       let roleResolved: Role = null;
 
-      // 1) Read role from the refreshed access token (getUser() can lag behind SQL/dashboard edits)
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
-      if (token) {
-        roleResolved = roleFromAccessToken(token);
-      }
 
       let userForMeta: User | null = authUser;
       const { data: userData, error: userErr } = await supabase.auth.getUser();
@@ -87,8 +83,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userForMeta = userData.user;
       }
 
-      if (!roleResolved && generation === roleFetchGeneration.current) {
+      // 1) Prefer getUser() metadata from Auth API (fresh after dashboard / SQL updates to auth.users)
+      // 2) Then JWT — access_token can lag behind until refresh; decoding alone caused "Role not set"
+      if (generation === roleFetchGeneration.current) {
         roleResolved = resolveRoleFromUser(userForMeta, null);
+      }
+      if (!roleResolved && token) {
+        roleResolved = roleFromAccessToken(token);
       }
 
       // 2) RPC — works when RLS blocks REST SELECT on profiles
@@ -97,9 +98,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const { data: rpcRole, error: rpcErr } = await supabase.rpc('get_my_role', {});
           if (generation !== roleFetchGeneration.current) return;
           if (!rpcErr && rpcRole != null && String(rpcRole).trim() !== '') {
-            const r = normalizeRole(
-              typeof rpcRole === 'string' ? rpcRole : String(rpcRole)
-            );
+            const raw = Array.isArray(rpcRole) ? rpcRole[0] : rpcRole;
+            const r = normalizeRole(typeof raw === 'string' ? raw : String(raw));
             if (r) roleResolved = r;
           } else if (rpcErr) {
             const msg = rpcErr.message ?? '';
@@ -143,6 +143,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         roleResolved = resolveRoleFromUser(userForMeta, profileRole);
+      }
+
+      if (generation === roleFetchGeneration.current && !roleResolved) {
+        console.warn(
+          '[CLA] Role unresolved. public.profiles must have a row where id equals this user id, or JWT user_metadata.role / get_my_role must return coach|member.',
+          { userId }
+        );
       }
 
       if (generation === roleFetchGeneration.current && roleResolved) {

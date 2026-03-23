@@ -24,7 +24,7 @@ const CURRICULUM_OPTIONS = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { role, loading: authLoading, refreshRole } = useAuth();
+  const { user, role, loading: authLoading, refreshRole } = useAuth();
   const [recentClasses, setRecentClasses] = useState<ClassLog[]>([]);
   const [stats, setStats] = useState({ classesRun: 0, totalAttendance: 0, avgAttendance: 0 });
   const [curriculumStats, setCurriculumStats] = useState<{subject: string, coverage: number}[]>([]);
@@ -138,19 +138,41 @@ export default function Dashboard() {
                   ? 'Loading your profile…'
                   : (
                     <>
-                      No coach/member role was found for this login. In Supabase: add a{' '}
-                      <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">profiles</code> row (or run{' '}
-                      <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">supabase_backfill_profiles_from_auth.sql</code>
-                      ), deploy <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">supabase_get_my_role.sql</code>, set Auth user metadata{' '}
-                      <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">role</code> to <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">coach</code> or{' '}
-                      <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">member</code>, then <strong>sign out and sign in</strong>.{' '}
-                      <button
-                        type="button"
-                        className="text-primary font-semibold underline underline-offset-2"
-                        onClick={() => void refreshRole()}
-                      >
-                        Retry sync
-                      </button>
+                      <span className="block">
+                        Having rows in <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">profiles</code> only works if{' '}
+                        <strong className="text-slate-700 dark:text-slate-200">one row&apos;s id</strong> matches{' '}
+                        <strong className="text-slate-700 dark:text-slate-200">this account</strong> (below). Compare in Table Editor →{' '}
+                        <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">profiles.id</code> or Authentication → Users.
+                      </span>
+                      {user?.id && (
+                        <div className="mt-3 rounded-lg border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/90 dark:bg-amber-950/30 px-3 py-2.5 text-xs text-slate-800 dark:text-slate-200">
+                          <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                            <span className="font-sans font-medium text-amber-900 dark:text-amber-200/95">
+                              Your user id — must equal <code className="font-mono text-[11px]">profiles.id</code>
+                            </span>
+                            <button
+                              type="button"
+                              className="shrink-0 text-primary font-semibold underline underline-offset-2"
+                              onClick={() => void navigator.clipboard.writeText(user.id)}
+                            >
+                              Copy id
+                            </button>
+                          </div>
+                          <code className="block font-mono text-[11px] break-all text-slate-700 dark:text-slate-300">{user.id}</code>
+                        </div>
+                      )}
+                      <span className="block mt-3">
+                        If missing: run <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">supabase_profiles_upsert_for_user.sql</code> (paste your id), deploy{' '}
+                        <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">supabase_get_my_role.sql</code>, set Auth user metadata{' '}
+                        <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">role</code>, then <strong>sign out and sign in</strong>.{' '}
+                        <button
+                          type="button"
+                          className="text-primary font-semibold underline underline-offset-2"
+                          onClick={() => void refreshRole()}
+                        >
+                          Retry sync
+                        </button>
+                      </span>
                     </>
                   )}
           </p>
