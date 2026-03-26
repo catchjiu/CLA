@@ -162,7 +162,7 @@ export default function Dashboard() {
                         </div>
                       )}
                       <span className="block mt-3">
-                        If missing: run <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">supabase_profiles_upsert_for_user.sql</code> (paste your id), deploy{' '}
+                        If missing: run <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">supabase_profiles_upsert_for_user.sql</code> (replace the one <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">uid</code> line with your id), deploy{' '}
                         <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">supabase_get_my_role.sql</code>, set Auth user metadata{' '}
                         <code className="text-xs rounded bg-slate-200 dark:bg-slate-800 px-1 py-0.5">role</code>, then <strong>sign out and sign in</strong>.{' '}
                         <button

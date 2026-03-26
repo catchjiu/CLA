@@ -14,7 +14,7 @@ The app only reads the row where **`profiles.id` = your logged-in user id** (sam
 
 1. In the app, use **Copy id** on the dashboard (or copy UUID from Auth).  
 2. In **Table Editor → `profiles`**, confirm a row exists with **`id` = that exact UUID**.  
-3. If not, run **`supabase_profiles_upsert_for_user.sql`** (replace `YOUR_USER_UUID`), then sign out and sign in.
+3. If not, run **`supabase_profiles_upsert_for_user.sql`** (replace the one `uid` line with your UUID from Auth), then sign out and sign in.
 
 ---
 
